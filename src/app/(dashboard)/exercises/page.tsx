@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Dumbbell, Search, Filter, Plus } from "lucide-react";
+import { Dumbbell, Search, Filter, Plus, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default async function ExercisesPage({
@@ -23,16 +23,23 @@ export default async function ExercisesPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Exercise Library</h1>
           <p className="text-muted-foreground mt-1">Browse, filter, and inspect exercises</p>
         </div>
-        <Button asChild variant="athletic">
-          <Link href="/exercises/new">
-            <Plus className="mr-1.5 h-4 w-4" /> New Exercise
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/calculator">
+              <Calculator className="mr-1.5 h-4 w-4 text-emerald-600" /> 1RM Calculator
+            </Link>
+          </Button>
+          <Button asChild variant="athletic">
+            <Link href="/exercises/new">
+              <Plus className="mr-1.5 h-4 w-4" /> New Exercise
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Search & Filter Form */}

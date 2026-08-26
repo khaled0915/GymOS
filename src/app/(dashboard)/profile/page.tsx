@@ -21,12 +21,13 @@ export default async function ProfilePage() {
         initialData={{
           name: user?.name || "",
           email: user?.email || "",
-          height: user?.profile?.height ?? undefined,
-          currentWeight: user?.profile?.currentWeight ?? undefined,
-          fitnessGoal: user?.profile?.fitnessGoal ?? undefined,
-          experienceLevel: user?.profile?.experienceLevel ?? undefined,
+          dateOfBirth: user?.profile?.dateOfBirth ? user.profile.dateOfBirth.toISOString().split("T")[0]! : null,
+          height: user?.profile?.height ?? null,
+          currentWeight: user?.profile?.currentWeight ?? null,
+          fitnessGoal: user?.profile?.fitnessGoal ?? null,
+          experienceLevel: user?.profile?.experienceLevel ?? null,
           preferredUnit: user?.profile?.preferredUnit ?? "METRIC",
-          weeklyFrequency: user?.profile?.weeklyFrequency ?? undefined,
+          weeklyFrequency: user?.profile?.weeklyFrequency ?? null,
         }}
       />
     </div>

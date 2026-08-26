@@ -26,10 +26,46 @@ import {
   TrendingUp,
   AlertTriangle,
   Sparkles,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import type { FullWorkoutSession } from "@/repositories/workout.repository";
 import type { Exercise } from "@prisma/client";
 import { useRouter } from "next/navigation";
+
+function playRestChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(880, now);
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.3);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1320, now + 0.15);
+    gain2.gain.setValueAtTime(0.25, now + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.15);
+    osc2.stop(now + 0.6);
+  } catch {
+    // Audio autoplay restrictions catch
+  }
+}
 
 interface WorkoutLoggerProps {
   initialSession: FullWorkoutSession | null;
@@ -55,6 +91,7 @@ export function WorkoutLoggerClient({
   // Rest Timer state
   const [timerSeconds, setTimerSeconds] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Exercise picker modal
   const [showExercisePicker, setShowExercisePicker] = useState(false);
@@ -118,13 +155,19 @@ export function WorkoutLoggerClient({
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timerSeconds > 0) {
       interval = setInterval(() => {
-        setTimerSeconds((prev) => prev - 1);
+        setTimerSeconds((prev) => {
+          if (prev === 1) {
+            if (soundEnabled) playRestChime();
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
     } else if (timerSeconds === 0) {
       setIsTimerRunning(false);
     }
     return () => clearInterval(interval);
-  }, [isTimerRunning, timerSeconds]);
+  }, [isTimerRunning, timerSeconds, soundEnabled]);
 
   const startTimer = (seconds: number) => {
     setTimerSeconds(seconds);
@@ -265,7 +308,16 @@ export function WorkoutLoggerClient({
                 </p>
               </div>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0"
+                onClick={() => setSoundEnabled((prev) => !prev)}
+                title={soundEnabled ? "Mute Timer Chime" : "Enable Timer Chime"}
+              >
+                {soundEnabled ? <Volume2 className="h-4 w-4 text-emerald-600" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+              </Button>
               <Button size="sm" variant="outline" onClick={() => setTimerSeconds((s) => s + 30)}>+30s</Button>
               <Button size="sm" variant="secondary" onClick={() => setTimerSeconds(0)}>Skip</Button>
             </div>

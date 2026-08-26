@@ -14,7 +14,8 @@ import {
   BarChart3,
   History,
   Utensils,
-  Sparkles 
+  Sparkles,
+  Calculator 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ const navItems = [
   { label: "Nutrition", href: "/nutrition", icon: Utensils },
   { label: "History", href: "/workouts/history", icon: History },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Calculator", href: "/calculator", icon: Calculator },
   { label: "Progress", href: "/progress", icon: TrendingUp },
   { label: "Profile", href: "/profile", icon: User },
 ];
