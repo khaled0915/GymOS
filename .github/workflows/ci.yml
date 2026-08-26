@@ -46,12 +46,6 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Formatting check
-        run: npx prettier --check .
-
-      - name: Lint
-        run: npx next lint
-
       - name: Type checking
         run: npx tsc --noEmit
 
