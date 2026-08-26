@@ -22,8 +22,16 @@ import {
   Sparkles,
   Check,
   Settings2,
+  BookOpen,
+  Search,
+  X,
 } from "lucide-react";
 import type { MealLog, NutritionGoal, MealType } from "@prisma/client";
+import {
+  searchFoodLibrary,
+  scaleFoodMacros,
+  type FoodItem,
+} from "@/domain/food-library";
 import { useRouter } from "next/navigation";
 
 interface NutritionProps {
@@ -34,6 +42,7 @@ interface NutritionProps {
 }
 
 const MEAL_TYPES: MealType[] = ["BREAKFAST", "LUNCH", "DINNER", "SNACK"];
+const CATEGORIES = ["ALL", "PROTEIN", "CARB", "DAIRY", "FAT", "FRUIT_VEG", "SUPPLEMENT"];
 
 export function NutritionDashboardClient({
   initialMeals,
@@ -52,6 +61,13 @@ export function NutritionDashboardClient({
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
   const [mealError, setMealError] = useState<string | null>(null);
+
+  // Food Library Modal State
+  const [showFoodLibrary, setShowFoodLibrary] = useState(false);
+  const [foodSearch, setFoodSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [portionAmount, setPortionAmount] = useState<string>("100");
 
   // Goal Form Modal State
   const [showGoalModal, setShowGoalModal] = useState(false);
@@ -80,6 +96,28 @@ export function NutritionDashboardClient({
   const carbPct = Math.min(100, Math.round((totalCarbs / goal.dailyCarbs) * 100));
   const fatPct = Math.min(100, Math.round((totalFat / goal.dailyFat) * 100));
   const waterPct = Math.min(100, Math.round((todayWaterMl / goal.dailyWaterMl) * 100));
+
+  const filteredFoods = searchFoodLibrary(foodSearch, selectedCategory);
+
+  const handleSelectFood = (food: FoodItem) => {
+    setSelectedFood(food);
+    setPortionAmount(food.defaultServing.toString());
+  };
+
+  const handleApplyFoodToMeal = () => {
+    if (!selectedFood) return;
+    const amount = parseFloat(portionAmount) || selectedFood.defaultServing;
+    const scaled = scaleFoodMacros(selectedFood, amount);
+
+    setMealName(`${scaled.name} (${amount}${scaled.unit})`);
+    setCalories(scaled.calories.toString());
+    setProtein(scaled.protein.toString());
+    setCarbs(scaled.carbs.toString());
+    setFat(scaled.fat.toString());
+
+    setSelectedFood(null);
+    setShowFoodLibrary(false);
+  };
 
   const handleLogMeal = () => {
     if (!mealName.trim() || !calories) {
@@ -320,9 +358,19 @@ export function NutritionDashboardClient({
           {/* Quick Meal Entry Form */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Plus className="h-4 w-4 text-emerald-600" /> Log Meal
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-emerald-600" /> Log Meal
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setShowFoodLibrary(true)}
+                >
+                  <BookOpen className="h-3 w-3 mr-1 text-emerald-500" /> Food Library
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
@@ -430,7 +478,7 @@ export function NutritionDashboardClient({
                 <div className="text-center py-12 space-y-3">
                   <Utensils className="h-10 w-10 text-muted-foreground/30 mx-auto" />
                   <p className="text-sm text-muted-foreground">No meals logged for today.</p>
-                  <p className="text-xs text-muted-foreground">Use the quick log form to track your nutrition.</p>
+                  <p className="text-xs text-muted-foreground">Use the quick log form or food library to track your nutrition.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -470,6 +518,117 @@ export function NutritionDashboardClient({
           </Card>
         </div>
       </div>
+
+      {/* Food Library Modal */}
+      {showFoodLibrary && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-emerald-600" /> Food Database & Scaler
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => { setShowFoodLibrary(false); setSelectedFood(null); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 border-b space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search chicken, rice, oats, eggs, whey…"
+                  value={foodSearch}
+                  onChange={(e) => setFoodSearch(e.target.value)}
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {CATEGORIES.map((cat) => (
+                  <Button
+                    key={cat}
+                    size="sm"
+                    variant={selectedCategory === cat ? "default" : "outline"}
+                    className="text-[11px] h-7 px-2.5 capitalize"
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat.toLowerCase().replace("_", " ")}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {filteredFoods.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No matching foods found.</p>
+              ) : (
+                filteredFoods.map((food) => (
+                  <div
+                    key={food.id}
+                    onClick={() => handleSelectFood(food)}
+                    className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                      selectedFood?.id === food.id
+                        ? "border-emerald-500 bg-emerald-500/10 shadow-sm"
+                        : "hover:border-muted-foreground/30 bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">{food.name}</p>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {food.caloriesPer100g} kcal/100g
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Per 100g: P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {selectedFood && (
+              <div className="p-4 border-t bg-muted/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm">{selectedFood.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">Portion ({selectedFood.servingUnit}):</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={portionAmount}
+                      onChange={(e) => setPortionAmount(e.target.value)}
+                      className="w-20 h-8 text-center font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* Scaled preview */}
+                {(() => {
+                  const amt = parseFloat(portionAmount) || selectedFood.defaultServing;
+                  const sc = scaleFoodMacros(selectedFood, amt);
+                  return (
+                    <div className="flex items-center justify-between text-xs bg-background p-2.5 rounded-lg border">
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{sc.calories} kcal</span>
+                      <span>Protein: {sc.protein}g</span>
+                      <span>Carbs: {sc.carbs}g</span>
+                      <span>Fat: {sc.fat}g</span>
+                    </div>
+                  );
+                })()}
+
+                <Button
+                  onClick={handleApplyFoodToMeal}
+                  variant="athletic"
+                  size="sm"
+                  className="w-full font-bold"
+                >
+                  <Plus className="mr-1.5 h-4 w-4" /> Use in Meal Log
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Adjust Goals Modal */}
       {showGoalModal && (

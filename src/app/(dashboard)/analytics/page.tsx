@@ -13,6 +13,7 @@ import { VolumeChartClient } from "@/components/analytics/VolumeChartClient";
 import { MuscleGroupPieClient } from "@/components/analytics/MuscleGroupPieClient";
 import { ExerciseProgressionClient } from "@/components/analytics/ExerciseProgressionClient";
 import { WorkoutFrequencyClient } from "@/components/analytics/WorkoutFrequencyClient";
+import { VolumeLandmarksClient } from "@/components/analytics/VolumeLandmarksClient";
 
 export default async function AnalyticsPage() {
   const session = await auth();
@@ -26,12 +27,26 @@ export default async function AnalyticsPage() {
     completedAt: new Date(w.completedAt),
   }));
 
+  // Calculate weekly direct working sets per muscle group (last 7 days)
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const weeklySetsByMuscle: Record<string, number> = {};
+  for (const w of data.analyticsWorkouts) {
+    if (w.completedAt && new Date(w.completedAt) >= oneWeekAgo) {
+      for (const es of w.exerciseSessions) {
+        const muscle = es.primaryMuscle;
+        weeklySetsByMuscle[muscle] = (weeklySetsByMuscle[muscle] ?? 0) + es.sets.length;
+      }
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight">Analytics</h1>
         <p className="text-muted-foreground mt-1">
-          Deep insights into your training performance
+          Deep insights into your training performance and volume benchmarks
         </p>
       </div>
 
@@ -82,6 +97,9 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Hypertrophy Volume Landmarks Tracker */}
+      <VolumeLandmarksClient setsByMuscle={weeklySetsByMuscle} />
 
       {/* Volume by Week */}
       {data.volumeByWeek.length >= 1 && (

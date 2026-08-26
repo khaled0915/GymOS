@@ -28,7 +28,9 @@ import {
   Sparkles,
   Volume2,
   VolumeX,
+  Flame,
 } from "lucide-react";
+import { generateWarmUpSets, type WarmUpSet } from "@/domain/warmup";
 import type { FullWorkoutSession } from "@/repositories/workout.repository";
 import type { Exercise } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -96,6 +98,7 @@ export function WorkoutLoggerClient({
   // Exercise picker modal
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState("");
+  const [showWarmUpModal, setShowWarmUpModal] = useState(false);
 
   // Guidance (Previous sets + Overload Target + Plateau Analysis)
   const [previousSets, setPreviousSets] = useState<
@@ -368,9 +371,19 @@ export function WorkoutLoggerClient({
               <CardTitle className="text-xl font-bold">
                 {currentExerciseSession.exercise.name}
               </CardTitle>
-              {currentExerciseSession.exercise.primaryMuscle && (
-                <Badge variant="secondary">{currentExerciseSession.exercise.primaryMuscle}</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs px-2 border-orange-500/40 text-orange-600 dark:text-orange-400"
+                  onClick={() => setShowWarmUpModal(true)}
+                >
+                  <Flame className="h-3 w-3 mr-1 fill-current" /> Warm-Up
+                </Button>
+                {currentExerciseSession.exercise.primaryMuscle && (
+                  <Badge variant="secondary">{currentExerciseSession.exercise.primaryMuscle}</Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -536,6 +549,66 @@ export function WorkoutLoggerClient({
                   </button>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warm-Up Sets Calculator Modal */}
+      {showWarmUpModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card border rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Flame className="h-5 w-5 text-orange-500 fill-current" /> Warm-Up Calculator
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowWarmUpModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>Target working weight: <span className="font-bold text-foreground">{parseFloat(weight) || 60} kg</span></p>
+              <p>Gradual neural potentiation without accumulating metabolic fatigue.</p>
+            </div>
+
+            {(() => {
+              const workWeight = parseFloat(weight) || 60;
+              const warmUps = generateWarmUpSets(workWeight);
+              return (
+                <div className="space-y-2">
+                  {warmUps.map((ws) => (
+                    <div
+                      key={ws.setNumber}
+                      className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30 text-xs"
+                    >
+                      <div>
+                        <span className="font-semibold">{ws.label}: </span>
+                        <span className="font-bold text-sm text-foreground">{ws.weight} kg</span>
+                        <span className="text-muted-foreground"> × {ws.reps} reps ({ws.percentage}%)</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px] px-2"
+                        onClick={() => {
+                          setWeight(ws.weight.toString());
+                          setReps(ws.reps.toString());
+                          setShowWarmUpModal(false);
+                        }}
+                      >
+                        Load Set
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" size="sm" onClick={() => setShowWarmUpModal(false)}>
+                Close
+              </Button>
             </div>
           </div>
         </div>
