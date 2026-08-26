@@ -12,7 +12,8 @@ import {
   Play, 
   ArrowRight,
   Clock,
-  Calendar
+  Calendar,
+  Sparkles
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -32,6 +33,11 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground mt-1">Ready to dominate your session today?</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="lg">
+            <Link href="/coach">
+              <Sparkles className="mr-2 h-4 w-4 text-emerald-500" /> AI Coach
+            </Link>
+          </Button>
           <Button asChild variant="athletic" size="lg" className="shadow-md">
             <Link href="/workouts">
               <Play className="mr-2 h-5 w-5 fill-current" />

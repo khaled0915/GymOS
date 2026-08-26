@@ -68,3 +68,10 @@ export async function getPreviousPerformanceAction(exerciseId: string) {
     rpe: s.rpe,
   }));
 }
+
+export async function getExerciseGuidanceAction(exerciseId: string, minReps = 8, maxReps = 12) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  return WorkoutService.getExerciseGuidance(session.user.id, exerciseId, { min: minReps, max: maxReps });
+}

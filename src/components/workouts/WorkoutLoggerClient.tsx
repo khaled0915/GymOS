@@ -10,7 +10,7 @@ import {
   addExerciseToWorkoutAction,
   logSetAction,
   completeWorkoutAction,
-  getPreviousPerformanceAction,
+  getExerciseGuidanceAction,
 } from "@/actions/workout.actions";
 import {
   Play,
@@ -23,6 +23,9 @@ import {
   ChevronRight,
   X,
   Search,
+  TrendingUp,
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import type { FullWorkoutSession } from "@/repositories/workout.repository";
 import type { Exercise } from "@prisma/client";
@@ -57,19 +60,58 @@ export function WorkoutLoggerClient({
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState("");
 
-  // Previous performance
+  // Guidance (Previous sets + Overload Target + Plateau Analysis)
   const [previousSets, setPreviousSets] = useState<
     { setNumber: number; weight: number; repetitions: number; rpe: number | null }[]
   >([]);
+  const [recommendation, setRecommendation] = useState<{
+    weight: number;
+    targetReps: number;
+    reason: string;
+  } | null>(null);
+  const [plateauAlert, setPlateauAlert] = useState<{
+    status: string;
+    reason: string;
+    recommendation?: string;
+  } | null>(null);
 
-  // Fetch previous performance when active exercise changes
+  // Fetch guidance when active exercise changes
   useEffect(() => {
     const exerciseId = session?.exerciseSessions[activeExerciseIndex]?.exerciseId;
     if (!exerciseId) {
       setPreviousSets([]);
+      setRecommendation(null);
+      setPlateauAlert(null);
       return;
     }
-    getPreviousPerformanceAction(exerciseId).then(setPreviousSets).catch(() => setPreviousSets([]));
+
+    getExerciseGuidanceAction(exerciseId)
+      .then((guidance) => {
+        setPreviousSets(guidance.previousSets);
+        setRecommendation(guidance.recommendation);
+        if (guidance.plateauAnalysis.status === "PLATEAU_DETECTED") {
+          setPlateauAlert(guidance.plateauAnalysis);
+        } else {
+          setPlateauAlert(null);
+        }
+
+        // Auto-fill suggested weight if previous performance exists
+        if (guidance.recommendation) {
+          setWeight(guidance.recommendation.weight.toString());
+          setReps(guidance.recommendation.targetReps.toString());
+        } else if (guidance.previousSets.length > 0) {
+          const last = guidance.previousSets[guidance.previousSets.length - 1];
+          if (last) {
+            setWeight(last.weight.toString());
+            setReps(last.repetitions.toString());
+          }
+        }
+      })
+      .catch(() => {
+        setPreviousSets([]);
+        setRecommendation(null);
+        setPlateauAlert(null);
+      });
   }, [session, activeExerciseIndex]);
 
   useEffect(() => {
@@ -158,7 +200,7 @@ export function WorkoutLoggerClient({
         <div>
           <h1 className="text-3xl font-black tracking-tight">Ready to Train?</h1>
           <p className="text-muted-foreground mt-2">
-            Start a fresh workout session and log your sets with live PR detection and rest timers.
+            Start a fresh workout session and log your sets with live PR detection, progressive overload guidance, and rest timers.
           </p>
         </div>
         <Button
@@ -279,26 +321,64 @@ export function WorkoutLoggerClient({
               )}
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-5">
+            {/* Plateau Alert if detected */}
+            {plateauAlert && (
+              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4" /> Plateau Alert ({plateauAlert.reason})
+                </div>
+                <p className="text-amber-800/80 dark:text-amber-300/80">
+                  {plateauAlert.recommendation}
+                </p>
+              </div>
+            )}
+
+            {/* Progressive Overload Target Recommendation */}
+            {recommendation && (
+              <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                    <Sparkles className="h-3.5 w-3.5" /> Overload Target: {recommendation.weight} kg × {recommendation.targetReps} reps
+                  </div>
+                  <p className="text-muted-foreground">{recommendation.reason}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-[11px] h-7 px-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+                  onClick={() => {
+                    setWeight(recommendation.weight.toString());
+                    setReps(recommendation.targetReps.toString());
+                  }}
+                >
+                  Use Target
+                </Button>
+              </div>
+            )}
+
             {/* Previous Performance */}
             {previousSets.length > 0 && (
-              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-1.5">
-                <p className="text-xs font-semibold uppercase text-blue-600 dark:text-blue-400">
-                  Previous Session
+              <div className="p-3 rounded-lg bg-muted/50 border space-y-1.5">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Previous Session Logs
                 </p>
-                {previousSets.map((ps) => (
-                  <div key={ps.setNumber} className="text-sm text-blue-700 dark:text-blue-300">
-                    Set {ps.setNumber}: {ps.weight} kg × {ps.repetitions} reps
-                    {ps.rpe ? ` @ RPE ${ps.rpe}` : ""}
-                  </div>
-                ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {previousSets.map((ps) => (
+                    <div key={ps.setNumber} className="text-xs p-1.5 rounded bg-background border">
+                      <span className="font-semibold text-muted-foreground">Set {ps.setNumber}: </span>
+                      <span className="font-bold">{ps.weight}kg × {ps.repetitions}</span>
+                      {ps.rpe && <span className="text-[10px] text-muted-foreground block">RPE {ps.rpe}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Sets Completed so far */}
             {currentExerciseSession.sets.length > 0 && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Logged Sets</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Current Session Logged Sets</p>
                 <div className="space-y-1.5">
                   {currentExerciseSession.sets.map((s) => (
                     <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 text-sm">
@@ -335,7 +415,7 @@ export function WorkoutLoggerClient({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">RPE</label>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">RPE (1-10)</label>
                   <Input
                     type="number"
                     step="0.5"

@@ -13,7 +13,8 @@ import {
   LogOut,
   BarChart3,
   History,
-  Utensils 
+  Utensils,
+  Sparkles 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Workout", href: "/workouts", icon: Dumbbell },
+  { label: "Coach", href: "/coach", icon: Sparkles },
   { label: "Programs", href: "/programs", icon: BookOpen },
   { label: "Exercises", href: "/exercises", icon: Flame },
   { label: "Nutrition", href: "/nutrition", icon: Utensils },

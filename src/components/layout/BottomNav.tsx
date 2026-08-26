@@ -9,13 +9,15 @@ import {
   Flame, 
   User,
   BarChart3,
-  Utensils 
+  Utensils,
+  Sparkles 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileNavItems = [
   { label: "Home", href: "/dashboard", icon: LayoutDashboard },
   { label: "Workout", href: "/workouts", icon: Dumbbell },
+  { label: "Coach", href: "/coach", icon: Sparkles },
   { label: "Exercises", href: "/exercises", icon: Flame },
   { label: "Nutrition", href: "/nutrition", icon: Utensils },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
