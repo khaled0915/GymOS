@@ -29,6 +29,8 @@ import {
   Volume2,
   VolumeX,
   Flame,
+  Dumbbell,
+  CheckCircle2,
 } from "lucide-react";
 import { generateWarmUpSets, type WarmUpSet } from "@/domain/warmup";
 import type { FullWorkoutSession } from "@/repositories/workout.repository";
@@ -95,168 +97,226 @@ export function WorkoutLoggerClient({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
+  // Elapsed Session Time
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   // Exercise picker modal
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState("");
+
+  // Warm-Up Modal state
   const [showWarmUpModal, setShowWarmUpModal] = useState(false);
 
-  // Guidance (Previous sets + Overload Target + Plateau Analysis)
-  const [previousSets, setPreviousSets] = useState<
-    { setNumber: number; weight: number; repetitions: number; rpe: number | null }[]
-  >([]);
+  // Intelligence State (Guidance + Plateau)
   const [recommendation, setRecommendation] = useState<{
     weight: number;
     targetReps: number;
     reason: string;
   } | null>(null);
   const [plateauAlert, setPlateauAlert] = useState<{
-    status: string;
+    stalledSessions: number;
     reason: string;
-    recommendation?: string;
+    recommendation: string;
   } | null>(null);
+  const [previousSets, setPreviousSets] = useState<
+    Array<{ setNumber: number; weight: number; repetitions: number; rpe?: number | null }>
+  >([]);
 
-  // Fetch guidance when active exercise changes
-  useEffect(() => {
-    const exerciseId = session?.exerciseSessions[activeExerciseIndex]?.exerciseId;
-    if (!exerciseId) {
-      setPreviousSets([]);
-      setRecommendation(null);
-      setPlateauAlert(null);
-      return;
-    }
-
-    getExerciseGuidanceAction(exerciseId)
-      .then((guidance) => {
-        setPreviousSets(guidance.previousSets);
-        setRecommendation(guidance.recommendation);
-        if (guidance.plateauAnalysis.status === "PLATEAU_DETECTED") {
-          setPlateauAlert(guidance.plateauAnalysis);
-        } else {
-          setPlateauAlert(null);
-        }
-
-        // Auto-fill suggested weight if previous performance exists
-        if (guidance.recommendation) {
-          setWeight(guidance.recommendation.weight.toString());
-          setReps(guidance.recommendation.targetReps.toString());
-        } else if (guidance.previousSets.length > 0) {
-          const last = guidance.previousSets[guidance.previousSets.length - 1];
-          if (last) {
-            setWeight(last.weight.toString());
-            setReps(last.repetitions.toString());
-          }
-        }
-      })
-      .catch(() => {
-        setPreviousSets([]);
-        setRecommendation(null);
-        setPlateauAlert(null);
-      });
-  }, [session, activeExerciseIndex]);
-
+  // Timer Tick
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timerSeconds > 0) {
       interval = setInterval(() => {
         setTimerSeconds((prev) => {
-          if (prev === 1) {
+          if (prev <= 1) {
+            setIsTimerRunning(false);
             if (soundEnabled) playRestChime();
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-    } else if (timerSeconds === 0) {
-      setIsTimerRunning(false);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timerSeconds, soundEnabled]);
 
-  const startTimer = (seconds: number) => {
-    setTimerSeconds(seconds);
-    setIsTimerRunning(true);
-  };
+  // Session clock
+  useEffect(() => {
+    if (!session) return;
+    const start = new Date(session.startedAt).getTime();
+    const updateElapsed = () => {
+      const diff = Math.floor((Date.now() - start) / 1000);
+      setElapsedSeconds(Math.max(0, diff));
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [session]);
 
-  const handleStartWorkout = async () => {
+  // Fetch guidance whenever exercise changes
+  const activeExerciseSession = session?.exerciseSessions[activeExerciseIndex];
+  useEffect(() => {
+    if (!activeExerciseSession?.exerciseId) return;
+
+    let isMounted = true;
+    getExerciseGuidanceAction(activeExerciseSession.exerciseId).then((res) => {
+      if (!isMounted || !res) return;
+      setRecommendation(res.recommendation);
+      setPlateauAlert(
+        res.plateauAnalysis?.status === "PLATEAU_DETECTED"
+          ? {
+              stalledSessions: res.plateauAnalysis.consecutiveStalledSessions,
+              reason: res.plateauAnalysis.reason,
+              recommendation: res.plateauAnalysis.recommendation || "Deload suggested",
+            }
+          : null
+      );
+      setPreviousSets(res.previousSets);
+      if (res.recommendation) {
+        setWeight(res.recommendation.weight.toString());
+        setReps(res.recommendation.targetReps.toString());
+      } else if (res.previousSets.length > 0) {
+        const lastSet = res.previousSets[0];
+        if (lastSet) {
+          setWeight(lastSet.weight.toString());
+          setReps(lastSet.repetitions.toString());
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeExerciseSession?.exerciseId]);
+
+  const handleStartWorkout = () => {
     startTransition(async () => {
-      await startWorkoutAction();
-      router.refresh();
+      const workout = await startWorkoutAction();
+      if (workout) {
+        setSession(workout);
+      }
     });
   };
 
-  const handleAddExercise = async (exerciseId: string) => {
+  const handleAddExercise = (exerciseId: string) => {
     if (!session) return;
     startTransition(async () => {
-      await addExerciseToWorkoutAction(session.id, exerciseId);
-      setShowExercisePicker(false);
-      setExerciseSearch("");
-      router.refresh();
+      const exerciseSession = await addExerciseToWorkoutAction(session.id, exerciseId);
+      if (exerciseSession) {
+        const exMeta = availableExercises.find((e) => e.id === exerciseId);
+        const newEs: any = {
+          ...exerciseSession,
+          exercise: exMeta || { id: exerciseId, name: "Exercise", primaryMuscle: "CHEST" },
+          sets: [],
+        };
+        setSession((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            exerciseSessions: [...prev.exerciseSessions, newEs],
+          };
+        });
+        setActiveExerciseIndex(session.exerciseSessions.length);
+        setShowExercisePicker(false);
+      }
     });
   };
 
-  const handleLogSet = async (exerciseSessionId: string, exerciseId: string) => {
-    if (!weight || !reps) return;
+  const handleLogSet = () => {
+    if (!activeExerciseSession) return;
+    const w = parseFloat(weight);
+    const r = parseInt(reps, 10);
+    const rpeVal = rpe ? parseFloat(rpe) : undefined;
 
-    const currentSets = session?.exerciseSessions[activeExerciseIndex]?.sets || [];
+    if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
+
     startTransition(async () => {
+      const nextSetNumber = activeExerciseSession.sets.length + 1;
       const res = await logSetAction({
-        exerciseSessionId,
-        exerciseId,
-        setNumber: currentSets.length + 1,
-        weight: parseFloat(weight),
-        repetitions: parseInt(reps),
-        rpe: rpe ? parseFloat(rpe) : undefined,
+        exerciseSessionId: activeExerciseSession.id,
+        exerciseId: activeExerciseSession.exerciseId,
+        setNumber: nextSetNumber,
+        weight: w,
+        repetitions: r,
+        rpe: rpeVal,
       });
 
-      if (res.newPrs && res.newPrs.length > 0 && res.newPrs[0]) {
-        const firstPr = res.newPrs[0];
-        setRecentPr(`New PR! ${firstPr.type.replace("_", " ")}: ${firstPr.value}`);
-        setTimeout(() => setRecentPr(null), 5000);
-      }
+      if (res && res.set) {
+        setSession((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            exerciseSessions: prev.exerciseSessions.map((es, idx) =>
+              idx === activeExerciseIndex
+                ? { ...es, sets: [...es.sets, res.set as any] }
+                : es
+            ),
+          };
+        });
 
-      startTimer(90);
-      router.refresh();
+        if (res.newPrs && res.newPrs.length > 0) {
+          const prTypes = res.newPrs.map((pr: any) => pr.type).join(", ");
+          setRecentPr(`🏆 New PR detected: ${prTypes}!`);
+          setTimeout(() => setRecentPr(null), 5000);
+        }
+
+        setTimerSeconds(90);
+        setIsTimerRunning(true);
+      }
     });
   };
 
-  const handleFinishWorkout = async () => {
+  const handleFinishWorkout = () => {
     if (!session) return;
     startTransition(async () => {
-      await completeWorkoutAction(session.id);
-      router.push("/dashboard");
+      const workout = await completeWorkoutAction(session.id);
+      if (workout) {
+        setSession(null);
+        router.push("/dashboard");
+      }
     });
   };
 
-  // Sync from server refresh
-  useEffect(() => {
-    setSession(initialSession);
-  }, [initialSession]);
-
   const filteredExercises = availableExercises.filter((e) =>
-    e.name.toLowerCase().includes(exerciseSearch.toLowerCase())
+    e.name.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
+    e.primaryMuscle.toLowerCase().includes(exerciseSearch.toLowerCase())
   );
 
-  // ── No active session: show start screen ──
+  const currentWorkingWeight = parseFloat(weight) || 60;
+  const warmUpRampSets = generateWarmUpSets(currentWorkingWeight);
+
+  // Total session calculations
+  const totalSetsLogged = session?.exerciseSessions.reduce((acc, es) => acc + es.sets.length, 0) || 0;
+  const totalVolumeLifted = session?.exerciseSessions.reduce((acc, es) => {
+    return acc + es.sets.reduce((sAcc, s) => sAcc + (s.completed ? s.weight * s.repetitions : 0), 0);
+  }, 0) || 0;
+
+  const formatElapsed = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
   if (!session) {
     return (
-      <div className="max-w-xl mx-auto text-center py-16 space-y-6">
-        <div className="h-16 w-16 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+      <div className="flex flex-col items-center justify-center p-8 sm:p-12 text-center border border-border/50 bg-[#12161F]/60 rounded-3xl backdrop-blur-md space-y-6 max-w-lg mx-auto mt-6">
+        <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
           <Play className="h-8 w-8 fill-current ml-1" />
         </div>
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Ready to Train?</h1>
-          <p className="text-muted-foreground mt-2">
-            Start a fresh workout session and log your sets with live PR detection, progressive overload guidance, and rest timers.
+        <div className="space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-black text-white">No Active Workout</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Ready to log your training session? Load previous weights, monitor rest times, and hit live overload targets.
           </p>
         </div>
         <Button
           onClick={handleStartWorkout}
           variant="athletic"
           size="lg"
-          className="w-full sm:w-auto px-8"
+          className="w-full sm:w-auto px-8 font-bold text-black bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20"
           disabled={isPending}
         >
-          {isPending ? "Starting…" : "Start Workout Now"}
+          {isPending ? "Starting…" : "+ Start New Workout"}
         </Button>
       </div>
     );
@@ -266,349 +326,364 @@ export function WorkoutLoggerClient({
   const totalExercises = session.exerciseSessions.length;
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Top Session Bar */}
-      <div className="flex items-center justify-between bg-card p-4 rounded-xl border">
-        <div>
-          <h2 className="font-bold text-lg">Active Session</h2>
-          <p className="text-xs text-muted-foreground">
-            Started {new Date(session.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            {" · "}{totalExercises} exercise{totalExercises !== 1 ? "s" : ""}
-          </p>
+    <div className="space-y-6 max-w-3xl mx-auto pb-20">
+      {/* ── Top Live Session Bar ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-border/60 bg-[#12161F]/80 backdrop-blur-md">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <h2 className="font-black text-lg text-white">Live Training Session</h2>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+            <span>⏱️ Elapsed: <strong className="text-white">{formatElapsed(elapsedSeconds)}</strong></span>
+            <span>🏋️ Volume: <strong className="text-emerald-400">{Math.round(totalVolumeLifted).toLocaleString()} kg</strong></span>
+            <span>Sets: <strong className="text-white">{totalSetsLogged}</strong></span>
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex items-center gap-2">
           <Button
             onClick={() => setShowExercisePicker(true)}
             variant="outline"
             size="sm"
+            className="h-9 px-3 text-xs border-border/60 hover:bg-white/5"
           >
-            <Plus className="h-4 w-4 mr-1.5" /> Add Exercise
+            <Plus className="h-4 w-4 mr-1" /> Add Exercise
           </Button>
-          <Button onClick={handleFinishWorkout} variant="destructive" size="sm" disabled={isPending}>
-            <Square className="h-4 w-4 mr-1.5 fill-current" /> Finish
+          <Button
+            onClick={handleFinishWorkout}
+            variant="destructive"
+            size="sm"
+            className="h-9 px-4 text-xs font-bold shadow-md shadow-rose-950/20"
+            disabled={isPending}
+          >
+            <Square className="h-3.5 w-3.5 mr-1 fill-current" /> Finish Session
           </Button>
         </div>
       </div>
 
-      {/* PR Alert Banner */}
+      {/* PR Alert Notification */}
       {recentPr && (
-        <div className="p-3 bg-yellow-500/15 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-yellow-700 dark:text-yellow-400 font-semibold text-sm animate-bounce">
-          <Trophy className="h-5 w-5" />
+        <div className="p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center gap-2 text-amber-300 font-bold text-xs animate-bounce shadow-md">
+          <Trophy className="h-4 w-4 text-amber-400" />
           {recentPr}
         </div>
       )}
 
-      {/* Rest Timer Widget */}
-      {timerSeconds > 0 && (
-        <Card className="border-emerald-500/50 bg-emerald-500/10">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Timer className="h-6 w-6 text-emerald-600 animate-spin" />
-              <div>
-                <p className="text-xs font-semibold uppercase text-emerald-700 dark:text-emerald-400">Rest Timer</p>
-                <p className="text-2xl font-black font-mono">
-                  {Math.floor(timerSeconds / 60)}:{(timerSeconds % 60).toString().padStart(2, "0")}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0"
-                onClick={() => setSoundEnabled((prev) => !prev)}
-                title={soundEnabled ? "Mute Timer Chime" : "Enable Timer Chime"}
-              >
-                {soundEnabled ? <Volume2 className="h-4 w-4 text-emerald-600" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setTimerSeconds((s) => s + 30)}>+30s</Button>
-              <Button size="sm" variant="secondary" onClick={() => setTimerSeconds(0)}>Skip</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Exercise Navigator */}
+      {/* ── Active Exercise Navigator Pills ── */}
       {totalExercises > 0 && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveExerciseIndex((i) => Math.max(0, i - 1))}
-            disabled={activeExerciseIndex === 0}
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-          </Button>
-          <span className="text-sm font-medium text-muted-foreground">
-            Exercise {activeExerciseIndex + 1} of {totalExercises}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setActiveExerciseIndex((i) => Math.min(totalExercises - 1, i + 1))}
-            disabled={activeExerciseIndex === totalExercises - 1}
-          >
-            Next <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {session.exerciseSessions.map((es, idx) => (
+            <button
+              key={es.id}
+              onClick={() => setActiveExerciseIndex(idx)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${
+                idx === activeExerciseIndex
+                  ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 shadow-sm"
+                  : "bg-[#12161F]/60 border-border/40 text-muted-foreground hover:text-white"
+              }`}
+            >
+              {idx + 1}. {es.exercise.name} ({es.sets.length} sets)
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Active Workout Content */}
+      {/* ── Active Exercise Card ── */}
       {totalExercises === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center space-y-4">
-            <Plus className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-            <p className="text-muted-foreground">No exercises added yet.</p>
-            <Button variant="athletic" onClick={() => setShowExercisePicker(true)}>
-              <Plus className="h-4 w-4 mr-1.5" /> Add Your First Exercise
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="p-10 text-center space-y-4 rounded-2xl border border-dashed border-border/60 bg-[#12161F]/40">
+          <Dumbbell className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+          <p className="text-sm text-muted-foreground">No exercises added to this session yet.</p>
+          <Button variant="athletic" onClick={() => setShowExercisePicker(true)} className="font-bold text-black bg-emerald-500">
+            <Plus className="h-4 w-4 mr-1.5" /> Add First Exercise
+          </Button>
+        </div>
       ) : currentExerciseSession ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-bold">
-                {currentExerciseSession.exercise.name}
-              </CardTitle>
+        <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-4">
+            <div>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs px-2 border-orange-500/40 text-orange-600 dark:text-orange-400"
-                  onClick={() => setShowWarmUpModal(true)}
-                >
-                  <Flame className="h-3 w-3 mr-1 fill-current" /> Warm-Up
-                </Button>
-                {currentExerciseSession.exercise.primaryMuscle && (
-                  <Badge variant="secondary">{currentExerciseSession.exercise.primaryMuscle}</Badge>
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
+                  {currentExerciseSession.exercise.primaryMuscle}
+                </Badge>
+                {currentExerciseSession.exercise.equipment && (
+                  <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                    {currentExerciseSession.exercise.equipment}
+                  </span>
                 )}
               </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
+                {currentExerciseSession.exercise.name}
+              </h3>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {/* Plateau Alert if detected */}
-            {plateauAlert && (
-              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-1 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="h-4 w-4" /> Plateau Alert ({plateauAlert.reason})
-                </div>
-                <p className="text-amber-800/80 dark:text-amber-300/80">
-                  {plateauAlert.recommendation}
-                </p>
-              </div>
-            )}
 
-            {/* Progressive Overload Target Recommendation */}
-            {recommendation && (
-              <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
-                    <Sparkles className="h-3.5 w-3.5" /> Overload Target: {recommendation.weight} kg × {recommendation.targetReps} reps
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs px-3 border-orange-500/40 text-orange-400 hover:bg-orange-500/10 font-semibold"
+                onClick={() => setShowWarmUpModal(true)}
+              >
+                <Flame className="h-3.5 w-3.5 mr-1 fill-current" /> Warm-Up Ramp
+              </Button>
+            </div>
+          </div>
+
+          {/* Plateau Warning Alert */}
+          {plateauAlert && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                <AlertTriangle className="h-4 w-4" /> Plateau Alert ({plateauAlert.reason})
+              </div>
+              <p className="text-amber-200/80 leading-relaxed">{plateauAlert.recommendation}</p>
+            </div>
+          )}
+
+          {/* Live Overload Guidance Target Badge */}
+          {recommendation && (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-400 text-sm">
+                  <Sparkles className="h-4 w-4" /> Overload Target: {recommendation.weight} kg × {recommendation.targetReps} reps
+                </div>
+                <p className="text-muted-foreground text-[11px]">{recommendation.reason}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8 px-3 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 font-bold"
+                onClick={() => {
+                  setWeight(recommendation.weight.toString());
+                  setReps(recommendation.targetReps.toString());
+                }}
+              >
+                Use Target
+              </Button>
+            </div>
+          )}
+
+          {/* Previous Performance Reference */}
+          {previousSets.length > 0 && (
+            <div className="p-3.5 rounded-xl bg-muted/30 border border-border/40 space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Previous Workout Reference
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {previousSets.map((ps) => (
+                  <div key={ps.setNumber} className="text-xs px-2.5 py-1 rounded-lg bg-card border border-border/50">
+                    <span className="text-muted-foreground font-mono">Set {ps.setNumber}: </span>
+                    <strong className="text-white">{ps.weight}kg × {ps.repetitions}</strong>
+                    {ps.rpe && <span className="text-[10px] text-muted-foreground ml-1">(@{ps.rpe})</span>}
                   </div>
-                  <p className="text-muted-foreground">{recommendation.reason}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-[11px] h-7 px-2 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
-                  onClick={() => {
-                    setWeight(recommendation.weight.toString());
-                    setReps(recommendation.targetReps.toString());
-                  }}
-                >
-                  Use Target
-                </Button>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Previous Performance */}
-            {previousSets.length > 0 && (
-              <div className="p-3 rounded-lg bg-muted/50 border space-y-1.5">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Previous Session Logs
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {previousSets.map((ps) => (
-                    <div key={ps.setNumber} className="text-xs p-1.5 rounded bg-background border">
-                      <span className="font-semibold text-muted-foreground">Set {ps.setNumber}: </span>
-                      <span className="font-bold">{ps.weight}kg × {ps.repetitions}</span>
-                      {ps.rpe && <span className="text-[10px] text-muted-foreground block">RPE {ps.rpe}</span>}
-                    </div>
-                  ))}
+          {/* ── Interactive Set Table ── */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sets for this Session</p>
+
+            {/* Completed Sets */}
+            {currentExerciseSession.sets.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-muted/20 border border-border/40 text-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-6 w-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-[11px]">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="font-bold text-white text-sm">Set {s.setNumber}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-white font-mono"><strong>{s.weight}</strong> kg</span>
+                  <span className="text-white font-mono"><strong>{s.repetitions}</strong> reps</span>
+                  {s.rpe && <span className="text-muted-foreground font-mono">RPE {s.rpe}</span>}
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold text-[10px]">
+                    Completed
+                  </span>
                 </div>
               </div>
-            )}
+            ))}
 
-            {/* Sets Completed so far */}
-            {currentExerciseSession.sets.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Current Session Logged Sets</p>
-                <div className="space-y-1.5">
-                  {currentExerciseSession.sets.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 text-sm">
-                      <span className="font-medium">Set {s.setNumber}</span>
-                      <span className="font-bold">{s.weight} kg × {s.repetitions} reps</span>
-                      {s.rpe && <span className="text-xs text-muted-foreground">RPE {s.rpe}</span>}
-                      <Check className="h-4 w-4 text-emerald-600" />
-                    </div>
-                  ))}
-                </div>
+            {/* Active Row Inputs (Set to be logged) */}
+            <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/10 space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-400">
+                <span>Set {currentExerciseSession.sets.length + 1} (Active)</span>
+                <span className="text-[10px] text-muted-foreground font-mono">Enter Weight & Reps</span>
               </div>
-            )}
 
-            {/* Set Logger Inputs */}
-            <div className="space-y-4 pt-4 border-t">
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Weight (kg)</label>
+                  <label className="text-[10px] text-muted-foreground font-bold uppercase block mb-1">Weight (kg)</label>
                   <Input
                     type="number"
                     step="0.5"
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
-                    className="text-center font-bold text-lg"
+                    className="h-10 text-base font-bold font-mono bg-background border-border/60 focus:border-emerald-400"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Reps</label>
+                  <label className="text-[10px] text-muted-foreground font-bold uppercase block mb-1">Reps</label>
                   <Input
                     type="number"
                     value={reps}
                     onChange={(e) => setReps(e.target.value)}
-                    className="text-center font-bold text-lg"
+                    className="h-10 text-base font-bold font-mono bg-background border-border/60 focus:border-emerald-400"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">RPE (1-10)</label>
+                  <label className="text-[10px] text-muted-foreground font-bold uppercase block mb-1">RPE (1-10)</label>
                   <Input
                     type="number"
                     step="0.5"
-                    max="10"
                     value={rpe}
                     onChange={(e) => setRpe(e.target.value)}
-                    className="text-center font-bold text-lg"
+                    className="h-10 text-base font-bold font-mono bg-background border-border/60 focus:border-emerald-400"
                   />
                 </div>
               </div>
 
               <Button
-                onClick={() => handleLogSet(currentExerciseSession.id, currentExerciseSession.exerciseId)}
+                onClick={handleLogSet}
                 variant="athletic"
-                size="lg"
-                className="w-full text-base font-bold shadow-md"
+                className="w-full h-11 font-bold text-black bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 text-sm"
                 disabled={isPending}
               >
-                <Check className="mr-2 h-5 w-5" /> {isPending ? "Logging…" : "Complete Set"}
+                <Check className="h-4 w-4 mr-2 stroke-[3]" /> Log Set {currentExerciseSession.sets.length + 1}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : null}
 
-      {/* Exercise Picker Modal */}
-      {showExercisePicker && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border rounded-xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="font-bold text-lg">Add Exercise</h3>
-              <Button variant="ghost" size="icon" onClick={() => { setShowExercisePicker(false); setExerciseSearch(""); }}>
+      {/* ── Floating Rest Timer Widget (Bottom Right) ── */}
+      {timerSeconds > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl border border-emerald-500/50 bg-[#12161F]/95 backdrop-blur-xl shadow-2xl shadow-emerald-950/50 flex items-center gap-4">
+          <div className="relative h-12 w-12 flex items-center justify-center">
+            <svg className="h-12 w-12 -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="14" fill="none" className="stroke-muted/30" strokeWidth="3" />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                className="stroke-emerald-400 animate-pulse"
+                strokeWidth="3"
+                strokeDasharray="88"
+                strokeDashoffset={88 - (88 * timerSeconds) / 90}
+                strokeLinecap="round"
+              />
+            </svg>
+            <Timer className="absolute h-5 w-5 text-emerald-400" />
+          </div>
+
+          <div>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Rest Timer</p>
+            <p className="text-2xl font-black font-mono text-white">
+              {Math.floor(timerSeconds / 60)}:{(timerSeconds % 60).toString().padStart(2, "0")}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 pl-2 border-l border-border/40">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+              onClick={() => setSoundEnabled((prev) => !prev)}
+              title={soundEnabled ? "Mute Timer" : "Enable Chime"}
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4 text-emerald-400" /> : <VolumeX className="h-4 w-4" />}
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 text-xs font-mono" onClick={() => setTimerSeconds((s) => s + 30)}>
+              +30s
+            </Button>
+            <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={() => setTimerSeconds(0)}>
+              Skip
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Warm-Up Modal ── */}
+      {showWarmUpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border/60 bg-[#12161F] p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <Flame className="h-5 w-5 text-orange-400 fill-current" />
+                <h3 className="font-bold text-white text-base">Scientific Warm-Up Ramp</h3>
+              </div>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowWarmUpModal(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="p-4 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search exercises…"
-                  value={exerciseSearch}
-                  onChange={(e) => setExerciseSearch(e.target.value)}
-                  className="pl-9"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {filteredExercises.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No exercises found.</p>
-              ) : (
-                filteredExercises.map((exercise) => (
-                  <button
-                    key={exercise.id}
-                    onClick={() => handleAddExercise(exercise.id)}
-                    disabled={isPending}
-                    className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent transition-colors flex items-center justify-between"
+            <p className="text-xs text-muted-foreground">
+              Based on your target working weight of <strong className="text-white">{currentWorkingWeight} kg</strong>:
+            </p>
+            <div className="space-y-2 text-xs">
+              {warmUpRampSets.map((ws) => (
+                <div key={ws.setNumber} className="flex items-center justify-between p-2.5 rounded-xl bg-card/60 border border-border/40">
+                  <div>
+                    <span className="font-bold text-white">Set {ws.setNumber} ({ws.percentage}%)</span>
+                    <span className="text-muted-foreground ml-2">{ws.weight} kg × {ws.reps} reps</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px] px-2"
+                    onClick={() => {
+                      setWeight(ws.weight.toString());
+                      setReps(ws.reps.toString());
+                      setShowWarmUpModal(false);
+                    }}
                   >
-                    <div>
-                      <p className="font-medium text-sm">{exercise.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {exercise.primaryMuscle}{exercise.equipment ? ` · ${exercise.equipment}` : ""}
-                      </p>
-                    </div>
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                ))
-              )}
+                    Load
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Warm-Up Sets Calculator Modal */}
-      {showWarmUpModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Flame className="h-5 w-5 text-orange-500 fill-current" /> Warm-Up Calculator
-              </h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowWarmUpModal(false)}>
+      {/* ── Exercise Picker Modal ── */}
+      {showExercisePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl border border-border/60 bg-[#12161F] p-6 space-y-4 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <h3 className="font-bold text-white text-base">Select Exercise</h3>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setShowExercisePicker(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>Target working weight: <span className="font-bold text-foreground">{parseFloat(weight) || 60} kg</span></p>
-              <p>Gradual neural potentiation without accumulating metabolic fatigue.</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search exercise by name or muscle..."
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+                className="pl-9 h-10 bg-background"
+              />
             </div>
 
-            {(() => {
-              const workWeight = parseFloat(weight) || 60;
-              const warmUps = generateWarmUpSets(workWeight);
-              return (
-                <div className="space-y-2">
-                  {warmUps.map((ws) => (
-                    <div
-                      key={ws.setNumber}
-                      className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/30 text-xs"
-                    >
-                      <div>
-                        <span className="font-semibold">{ws.label}: </span>
-                        <span className="font-bold text-sm text-foreground">{ws.weight} kg</span>
-                        <span className="text-muted-foreground"> × {ws.reps} reps ({ws.percentage}%)</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-[11px] px-2"
-                        onClick={() => {
-                          setWeight(ws.weight.toString());
-                          setReps(ws.reps.toString());
-                          setShowWarmUpModal(false);
-                        }}
-                      >
-                        Load Set
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
-            <div className="flex justify-end pt-1">
-              <Button variant="outline" size="sm" onClick={() => setShowWarmUpModal(false)}>
-                Close
-              </Button>
+            <div className="overflow-y-auto space-y-2 flex-1 pr-1">
+              {filteredExercises.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => handleAddExercise(e.id)}
+                  className="w-full text-left p-3 rounded-xl border border-border/40 bg-card/40 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all flex items-center justify-between group text-xs"
+                >
+                  <div>
+                    <p className="font-bold text-white text-sm group-hover:text-emerald-400">{e.name}</p>
+                    <p className="text-muted-foreground text-[11px]">{e.primaryMuscle} · {e.equipment || "Standard"}</p>
+                  </div>
+                  <Plus className="h-4 w-4 text-muted-foreground group-hover:text-emerald-400" />
+                </button>
+              ))}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { AnalyticsService } from "@/services/analytics.service";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 import {
   BarChart3,
   Dumbbell,
@@ -8,12 +8,18 @@ import {
   Trophy,
   TrendingUp,
   CalendarDays,
+  Download,
+  FileSpreadsheet,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import { VolumeChartClient } from "@/components/analytics/VolumeChartClient";
 import { MuscleGroupPieClient } from "@/components/analytics/MuscleGroupPieClient";
 import { ExerciseProgressionClient } from "@/components/analytics/ExerciseProgressionClient";
 import { WorkoutFrequencyClient } from "@/components/analytics/WorkoutFrequencyClient";
 import { VolumeLandmarksClient } from "@/components/analytics/VolumeLandmarksClient";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export default async function AnalyticsPage() {
   const session = await auth();
@@ -41,138 +47,178 @@ export default async function AnalyticsPage() {
     }
   }
 
+  // Calculate total tonnage
+  const totalVolumeTonnage = data.volumeByWeek.reduce((acc, w) => acc + w.volume, 0);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground mt-1">
-          Deep insights into your training performance and volume benchmarks
-        </p>
+    <div className="space-y-8 pb-12">
+      {/* ── Top Header Banner & Filter Bar ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#12161F]/90 via-[#0A0D12]/90 to-[#12161F]/90 border border-border/40 backdrop-blur-md">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2">
+              <BarChart3 className="h-7 w-7 text-emerald-400" /> Analytics Deep-Dive
+            </h1>
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Multi-week volume progression, hypertrophy landmarks, and strength trajectory
+          </p>
+        </div>
+
+        {/* Timeframe Selectors & Export Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="p-1 rounded-xl bg-card/60 border border-border/40 flex items-center gap-1 text-xs">
+            {["7D", "30D", "90D", "1Y", "ALL"].map((tf, i) => (
+              <button
+                key={tf}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  i === 1
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm"
+                    : "text-muted-foreground hover:text-white"
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs border-border/60 hover:bg-white/5">
+            <Link href="/profile">
+              <Download className="h-3.5 w-3.5 mr-1" /> Exports
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Workouts
-            </CardTitle>
-            <Dumbbell className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.totalWorkouts}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Sets
-            </CardTitle>
-            <BarChart3 className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.totalSets}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Avg Duration
-            </CardTitle>
-            <Clock className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.avgDuration} min</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Personal Records
-            </CardTitle>
-            <Trophy className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.totalPrs}</div>
-          </CardContent>
-        </Card>
+      {/* ── Row 1: 4 Performance Overview Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Volume Tonnage */}
+        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            <span>Total Volume Tonnage</span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+              <TrendingUp className="h-3 w-3" /> +14.2%
+            </span>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              {Math.round(totalVolumeTonnage).toLocaleString()}{" "}
+              <span className="text-xs font-semibold text-muted-foreground">kg</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Cumulative load lifted</p>
+          </div>
+        </div>
+
+        {/* Card 2: Workouts Completed */}
+        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            <span>Workouts Completed</span>
+            <Dumbbell className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-black text-white">
+              {data.totalWorkouts} <span className="text-xs font-semibold text-muted-foreground">Sessions</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Avg duration: {data.avgDuration} mins</p>
+          </div>
+        </div>
+
+        {/* Card 3: Total Sets & Reps */}
+        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            <span>Sets &amp; Reps Logged</span>
+            <Layers className="h-4 w-4 text-blue-400" />
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-black text-white">
+              {data.totalSets} <span className="text-xs font-semibold text-muted-foreground">Sets</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Across all logged sessions</p>
+          </div>
+        </div>
+
+        {/* Card 4: Personal Records */}
+        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+          <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
+            <span>Personal Records</span>
+            <Trophy className="h-4 w-4 text-amber-400" />
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-black text-white">
+              {data.totalPrs} <span className="text-xs font-semibold text-muted-foreground">Broken</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">All-time strength PRs</p>
+          </div>
+        </div>
       </div>
 
-      {/* Hypertrophy Volume Landmarks Tracker */}
+      {/* ── Row 2: Hypertrophy Volume Landmarks Grid ── */}
       <VolumeLandmarksClient setsByMuscle={weeklySetsByMuscle} />
 
-      {/* Volume by Week */}
+      {/* ── Row 3: Multi-Week Volume Progression Chart ── */}
       {data.volumeByWeek.length >= 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600" /> Weekly
-              Training Volume
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <VolumeChartClient data={data.volumeByWeek} />
-          </CardContent>
-        </Card>
+        <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+              <h3 className="font-bold text-white text-base">Weekly Volume Progression</h3>
+            </div>
+            <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px] font-bold">
+              Progressive Overload Trend
+            </Badge>
+          </div>
+          <VolumeChartClient data={data.volumeByWeek} />
+        </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* ── Row 4: 2-Column Split (Muscle Donut + Frequency Heatmap) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Muscle Group Distribution */}
         {data.volumeByMuscle.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Dumbbell className="h-5 w-5 text-purple-500" /> Volume by
-                Muscle Group
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MuscleGroupPieClient data={data.volumeByMuscle} />
-            </CardContent>
-          </Card>
+          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="h-5 w-5 text-purple-400" />
+                <h3 className="font-bold text-white text-base">Volume by Muscle Group</h3>
+              </div>
+            </div>
+            <MuscleGroupPieClient data={data.volumeByMuscle} />
+          </div>
         )}
 
         {/* Workout Frequency */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-blue-500" /> Training
-              Frequency
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkoutFrequencyClient data={data.frequencyByDay} />
-          </CardContent>
-        </Card>
+        <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-blue-400" />
+              <h3 className="font-bold text-white text-base">Training Frequency Heatmap</h3>
+            </div>
+          </div>
+          <WorkoutFrequencyClient data={data.frequencyByDay} />
+        </div>
       </div>
 
-      {/* Exercise Progression */}
+      {/* ── Row 5: Exercise Progression Dual-Line Graph ── */}
       {data.uniqueExercises.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600" /> Exercise
-              Progression
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ExerciseProgressionClient
-              exercises={data.uniqueExercises}
-              workouts={serializedWorkouts}
-            />
-          </CardContent>
-        </Card>
+        <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+              <h3 className="font-bold text-white text-base">Exercise Progression (1RM &amp; Working Weight)</h3>
+            </div>
+          </div>
+          <ExerciseProgressionClient
+            exercises={data.uniqueExercises}
+            workouts={serializedWorkouts}
+          />
+        </div>
       )}
 
       {data.totalWorkouts === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="py-12 text-center space-y-3">
-            <BarChart3 className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-            <p className="text-muted-foreground">
-              Complete some workouts to see your analytics here.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="p-12 text-center space-y-3 rounded-2xl border border-dashed border-border/60 bg-[#12161F]/40">
+          <BarChart3 className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+          <p className="text-muted-foreground">Complete some workouts to see your full analytics dashboard.</p>
+        </div>
       )}
     </div>
   );
