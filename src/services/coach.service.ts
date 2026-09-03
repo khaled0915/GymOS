@@ -23,9 +23,8 @@ import {
   generateQuickPrompts,
   estimateMuscleRecovery,
 } from "@/domain/coach-engine";
-import { getGeminiClient, COACH_MODEL } from "@/lib/gemini";
+import { getGeminiClient, COACH_MODELS } from "@/lib/gemini";
 import { buildCoachSystemPrompt } from "@/domain/coach-prompt";
-import { ThinkingLevel } from "@google/genai";
 
 // ──────────────────────────────────────
 // Muscle groups for recovery tracking
@@ -150,6 +149,16 @@ export class CoachService {
       }
     }
 
+    // ── Historical Top Exercises ──
+    const topExercises = Array.from(exerciseHistoryMap.values())
+      .map((item) => ({
+        name: item.name,
+        sessionsCount: item.sessions.length,
+        maxWeight: Math.max(...item.sessions.map((s) => s.topWeight), 0),
+      }))
+      .sort((a, b) => b.sessionsCount - a.sessionsCount)
+      .slice(0, 8);
+
     // ── Muscle recovery estimation ──
     const lastTrainedMap = new Map<string, Date>();
     for (const w of recentWorkouts) {
@@ -231,6 +240,7 @@ export class CoachService {
       weeklyMuscleSets,
       weeklyVolume: Math.round(weeklyVolume),
       muscleRecovery,
+      topExercises,
     };
   }
 
@@ -331,24 +341,29 @@ export class CoachService {
           contents.shift();
         }
 
-        const response = await gemini.models.generateContent({
-          model: COACH_MODEL,
-          contents,
-          config: {
-            systemInstruction: systemPrompt,
-            maxOutputTokens: 2048,
-            thinkingConfig: {
-              thinkingLevel: ThinkingLevel.MINIMAL,
-            },
-          },
-        });
+        // Try models in cascade order (gemini-3.5-flash -> gemini-3.5-flash-lite -> gemini-3.7-flash)
+        for (const modelName of COACH_MODELS) {
+          try {
+            const response = await gemini.models.generateContent({
+              model: modelName,
+              contents,
+              config: {
+                systemInstruction: systemPrompt,
+                maxOutputTokens: 2048,
+              },
+            });
 
-        const text = response.text?.trim();
-        if (text && text.length >= 30) {
-          reply = text;
+            const text = response.text?.trim();
+            if (text && text.length >= 30) {
+              reply = text;
+              break; // Succeeded!
+            }
+          } catch (modelError) {
+            console.warn(`[CoachService] Model ${modelName} error (quota or unavailable), trying next model:`, modelError);
+          }
         }
       } catch (error) {
-        console.error("[CoachService] Gemini API error, falling back to deterministic engine:", error);
+        console.error("[CoachService] Gemini error, falling back to deterministic engine:", error);
       }
     }
 

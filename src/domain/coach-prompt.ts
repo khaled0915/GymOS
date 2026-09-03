@@ -118,5 +118,31 @@ ${prLines}`);
 - Water: ${context.todayWater} ml`);
   }
 
+  // ── Top Exercises (Historical Maxes) ──
+  if (context.topExercises && context.topExercises.length > 0) {
+    const exLines = context.topExercises
+      .map((ex) => `- ${ex.name}: ${ex.sessionsCount} sessions logged (max weight: ${ex.maxWeight} kg)`)
+      .join("\n");
+    sections.push(`## Historical Exercise Performance
+${exLines}`);
+  }
+
+  // ── Quick Logging Capability (Single-Turn Drafts) ──
+  sections.push(`## Quick Logging Feature (Single-Turn Drafts)
+If the user explicitly asks to log or track a meal/food (e.g. "log my lunch: chicken and rice", "I had 3 eggs"):
+Provide a brief response with your nutritional estimation, and at the VERY END of your reply, output a structured draft block using this EXACT format:
+:::gymos-log-draft
+{"type":"MEAL","name":"Grilled Chicken & Rice","calories":500,"protein":45,"carbs":50,"fat":12,"mealType":"LUNCH"}
+:::
+Valid mealType values: "BREAKFAST", "LUNCH", "DINNER", "SNACK".
+
+If the user explicitly asks to log water (e.g. "log 500ml water", "I drank 2 cups"):
+Provide a brief confirmation, and at the VERY END of your reply, output:
+:::gymos-log-draft
+{"type":"WATER","amountMl":500}
+:::
+
+Never output the :::gymos-log-draft block unless the user explicitly requests to log food or water.`);
+
   return sections.join("\n\n");
 }

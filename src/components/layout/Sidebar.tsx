@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -78,12 +77,11 @@ export function Sidebar() {
               variant="ghost"
               size="sm"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="mr-3 h-4 w-4" />
               Sign Out
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </div>

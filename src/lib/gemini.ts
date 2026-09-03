@@ -24,5 +24,14 @@ export function getGeminiClient(): GoogleGenAI | null {
   return _client;
 }
 
-/** The model to use for coach conversations. */
-export const COACH_MODEL = "gemini-3.6-flash";
+/** Resilient model cascade: if one hits a quota limit, the coach automatically fails over */
+export const COACH_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+];
+
+/** Default primary model */
+export const COACH_MODEL = "gemini-3.5-flash";
+

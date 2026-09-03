@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { generateProgramAction, sendCoachMessageAction, clearChatHistoryAction } from "@/actions/coach.actions";
+import { logMealAction, logWaterAction } from "@/actions/nutrition.actions";
 import {
   Sparkles,
   Dumbbell,
@@ -16,6 +17,8 @@ import {
   Activity,
   Loader2,
   Trash2,
+  Utensils,
+  Droplets,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { CoachInsights } from "@/domain/coach";
@@ -47,6 +50,197 @@ interface ChatMessage {
   sender: "user" | "coach";
   text: string;
   timestamp: string;
+}
+
+interface MealDraft {
+  type: "MEAL";
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  mealType?: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
+}
+
+interface WaterDraft {
+  type: "WATER";
+  amountMl: number;
+}
+
+type LogDraft = MealDraft | WaterDraft;
+
+function parseLogDraft(text: string): { cleanText: string; draft: LogDraft | null } {
+  const match = text.match(/:::gymos-log-draft\s*([\s\S]*?)\s*:::/);
+  if (!match || !match[1]) {
+    return { cleanText: text, draft: null };
+  }
+  const cleanText = text.replace(/:::gymos-log-draft\s*[\s\S]*?\s*:::/, "").trim();
+  try {
+    const draft = JSON.parse(match[1]) as LogDraft;
+    return { cleanText, draft };
+  } catch {
+    return { cleanText: text, draft: null };
+  }
+}
+
+function InlineLogDraftCard({ draft }: { draft: LogDraft }) {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // Meal fields
+  const [name, setName] = useState(draft.type === "MEAL" ? draft.name : "");
+  const [calories, setCalories] = useState(draft.type === "MEAL" ? draft.calories : 0);
+  const [protein, setProtein] = useState(draft.type === "MEAL" ? draft.protein ?? 0 : 0);
+  const [carbs, setCarbs] = useState(draft.type === "MEAL" ? draft.carbs ?? 0 : 0);
+  const [fat, setFat] = useState(draft.type === "MEAL" ? draft.fat ?? 0 : 0);
+  const [mealType, setMealType] = useState<"BREAKFAST" | "LUNCH" | "DINNER" | "SNACK">(
+    draft.type === "MEAL" ? draft.mealType ?? "SNACK" : "SNACK"
+  );
+
+  // Water fields
+  const [waterAmount, setWaterAmount] = useState(draft.type === "WATER" ? draft.amountMl : 250);
+
+  if (isDismissed) return null;
+
+  if (isSaved) {
+    return (
+      <div className="mt-2.5 p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 flex items-center gap-2 text-xs font-semibold">
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+        <span>
+          {draft.type === "MEAL"
+            ? `Logged ${name} (${calories} kcal, ${protein}g protein) to Today's Nutrition!`
+            : `Logged ${waterAmount} ml water to Today's Hydration!`}
+        </span>
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (draft.type === "MEAL") {
+        await logMealAction({
+          name: name || "Quick Meal",
+          calories: Number(calories) || 100,
+          protein: Number(protein) || 0,
+          carbs: Number(carbs) || 0,
+          fat: Number(fat) || 0,
+          mealType,
+        });
+      } else {
+        await logWaterAction(Number(waterAmount) || 250);
+      }
+      setIsSaved(true);
+      router.refresh();
+    } catch {
+      // ignore
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-2.5 p-3 rounded-xl border border-border/70 bg-[#0A0D12]/95 space-y-2.5 text-xs text-white">
+      <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+        <div className="flex items-center gap-1.5 font-bold text-emerald-400 text-[11px]">
+          {draft.type === "MEAL" ? (
+            <>
+              <Utensils className="h-3.5 w-3.5" />
+              <span>Nutrition Log Draft</span>
+            </>
+          ) : (
+            <>
+              <Droplets className="h-3.5 w-3.5" />
+              <span>Hydration Log Draft</span>
+            </>
+          )}
+        </div>
+        <span className="text-[10px] text-muted-foreground">Verify &amp; Confirm</span>
+      </div>
+
+      {draft.type === "MEAL" ? (
+        <div className="space-y-2">
+          <div>
+            <label className="text-[10px] text-muted-foreground block mb-0.5">Item Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-[#12161F] border border-border/60 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-400"
+            />
+          </div>
+          <div className="grid grid-cols-4 gap-1.5 text-center">
+            <div>
+              <label className="text-[9px] text-muted-foreground block">Calories</label>
+              <input
+                type="number"
+                value={calories}
+                onChange={(e) => setCalories(Number(e.target.value))}
+                className="w-full bg-[#12161F] border border-border/60 rounded px-1.5 py-1 text-xs text-center text-white focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block">Protein (g)</label>
+              <input
+                type="number"
+                value={protein}
+                onChange={(e) => setProtein(Number(e.target.value))}
+                className="w-full bg-[#12161F] border border-border/60 rounded px-1.5 py-1 text-xs text-center text-white focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block">Carbs (g)</label>
+              <input
+                type="number"
+                value={carbs}
+                onChange={(e) => setCarbs(Number(e.target.value))}
+                className="w-full bg-[#12161F] border border-border/60 rounded px-1.5 py-1 text-xs text-center text-white focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block">Fat (g)</label>
+              <input
+                type="number"
+                value={fat}
+                onChange={(e) => setFat(Number(e.target.value))}
+                className="w-full bg-[#12161F] border border-border/60 rounded px-1.5 py-1 text-xs text-center text-white focus:outline-none focus:border-emerald-400"
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="text-[10px] text-muted-foreground block mb-0.5">Water Volume (ml)</label>
+          <input
+            type="number"
+            value={waterAmount}
+            onChange={(e) => setWaterAmount(Number(e.target.value))}
+            className="w-full bg-[#12161F] border border-border/60 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-400"
+          />
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 pt-1">
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="h-7 px-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg"
+        >
+          {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+          Confirm &amp; Save
+        </Button>
+        <button
+          onClick={() => setIsDismissed(true)}
+          className="text-[11px] text-muted-foreground hover:text-white px-2 py-1 transition-colors"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function CoachDashboardClient({
@@ -261,7 +455,19 @@ export function CoachDashboardClient({
                       : "bg-[#0A0D12]/90 border border-border/50 text-white rounded-tl-none space-y-1.5"
                   }`}
                 >
-                  <p className="whitespace-pre-line">{m.text}</p>
+                  {m.sender === "coach" ? (
+                    (() => {
+                      const { cleanText, draft } = parseLogDraft(m.text);
+                      return (
+                        <>
+                          <p className="whitespace-pre-line">{cleanText}</p>
+                          {draft && <InlineLogDraftCard draft={draft} />}
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <p className="whitespace-pre-line">{m.text}</p>
+                  )}
                   <span className={`text-[9px] block ${m.sender === "user" ? "text-black/70" : "text-muted-foreground"}`}>
                     {m.timestamp}
                   </span>

@@ -86,6 +86,13 @@ export interface CoachContext {
 
   // Recovery
   muscleRecovery: CoachMuscleRecovery[];
+
+  // Historical top exercises
+  topExercises?: Array<{
+    name: string;
+    sessionsCount: number;
+    maxWeight: number;
+  }>;
 }
 
 // ──────────────────────────────────────
