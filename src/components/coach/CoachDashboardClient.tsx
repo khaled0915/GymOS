@@ -4,7 +4,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { generateProgramAction, sendCoachMessageAction } from "@/actions/coach.actions";
+import { generateProgramAction, sendCoachMessageAction, clearChatHistoryAction } from "@/actions/coach.actions";
 import {
   Sparkles,
   Dumbbell,
@@ -15,6 +15,7 @@ import {
   Zap,
   Activity,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { CoachInsights } from "@/domain/coach";
@@ -33,9 +34,16 @@ interface CoachDashboardProps {
     advice: string;
   };
   isGeminiEnabled?: boolean;
+  initialMessages?: Array<{
+    id?: string;
+    sender: "user" | "coach";
+    text: string;
+    timestamp: string;
+  }>;
 }
 
 interface ChatMessage {
+  id?: string;
   sender: "user" | "coach";
   text: string;
   timestamp: string;
@@ -49,9 +57,11 @@ export function CoachDashboardClient({
   muscleRecovery,
   muscleBalance,
   isGeminiEnabled = false,
+  initialMessages = [],
 }: CoachDashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isClearing, setIsClearing] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Generator Options
@@ -59,17 +69,41 @@ export function CoachDashboardClient({
   const [frequency, setFrequency] = useState<3 | 4 | 5 | 6>(5);
   const [generatedSuccess, setGeneratedSuccess] = useState(false);
 
-  // Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: "coach",
-      text: greeting,
-      timestamp: "Just now",
-    },
-  ]);
+  // Chat State initialized from persisted history or default greeting
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages;
+    }
+    return [
+      {
+        id: "greeting",
+        sender: "coach",
+        text: greeting,
+        timestamp: "Just now",
+      },
+    ];
+  });
   const [inputMessage, setInputMessage] = useState("");
   const [isChatPending, setIsChatPending] = useState(false);
   const [dynamicPrompts, setDynamicPrompts] = useState<string[]>(initialQuickPrompts);
+
+  const handleClearHistory = async () => {
+    if (isClearing) return;
+    setIsClearing(true);
+    try {
+      await clearChatHistoryAction();
+      setMessages([
+        {
+          id: "greeting",
+          sender: "coach",
+          text: greeting,
+          timestamp: "Just now",
+        },
+      ]);
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -193,9 +227,19 @@ export function CoachDashboardClient({
               </div>
             </div>
 
-            <Badge variant="secondary" className="text-[10px] font-mono">
-              {isGeminiEnabled ? "Gemini Flash AI" : "Deterministic Engine"}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-[10px] font-mono">
+                {isGeminiEnabled ? "Gemini Flash AI" : "Deterministic Engine"}
+              </Badge>
+              <button
+                onClick={handleClearHistory}
+                disabled={isClearing || messages.length <= 1}
+                title="Clear conversation history"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 transition-colors disabled:opacity-25 disabled:pointer-events-none"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Chat Messages Feed */}

@@ -17,6 +17,7 @@ export default async function CoachPage() {
       muscleRecovery={data.coachContext.muscleRecovery}
       muscleBalance={data.coachContext.muscleBalance}
       isGeminiEnabled={data.isGeminiEnabled}
+      initialMessages={data.initialMessages}
     />
   );
 }

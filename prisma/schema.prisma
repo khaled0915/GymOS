@@ -146,6 +146,7 @@ model User {
   mealLogs         MealLog[]
   waterLogs        WaterLog[]
   nutritionGoal    NutritionGoal?
+  coachMessages    CoachMessage[]
   accounts         Account[]
   sessions         Session[]
 }
@@ -354,5 +355,18 @@ model NutritionGoal {
   updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CoachMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // "user" | "coach"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
 }
 

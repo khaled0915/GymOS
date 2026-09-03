@@ -125,3 +125,29 @@ describe("buildCoachSystemPrompt", () => {
   });
 });
 
+describe("multi-turn conversation formatting", () => {
+  it("formats turns with alternating user and model roles", () => {
+    const rawHistory = [
+      { role: "user", content: "I want to grow my chest" },
+      { role: "coach", content: "Focus on progressive overload on bench press" },
+    ];
+
+    const contents = rawHistory.map((m) => ({
+      role: m.role === "coach" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    contents.push({
+      role: "user",
+      parts: [{ text: "What accessories should I add?" }],
+    });
+
+    expect(contents).toHaveLength(3);
+    expect(contents[0]?.role).toBe("user");
+    expect(contents[1]?.role).toBe("model");
+    expect(contents[2]?.role).toBe("user");
+    expect(contents[2]?.parts[0]?.text).toContain("accessories");
+  });
+});
+
+

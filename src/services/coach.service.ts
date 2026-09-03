@@ -235,7 +235,46 @@ export class CoachService {
   }
 
   /**
-   * Handle a user chat message — calls Gemini with real user data as context.
+   * Fetch saved chat history for a user in chronological order.
+   */
+  static async getChatHistory(
+    userId: string,
+    limit = 50,
+  ): Promise<Array<{
+    id: string;
+    sender: "user" | "coach";
+    text: string;
+    timestamp: string;
+  }>> {
+    const messages = await db.coachMessage.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    });
+
+    return messages.map((m) => ({
+      id: m.id,
+      sender: m.role as "user" | "coach",
+      text: m.content,
+      timestamp: new Date(m.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    }));
+  }
+
+  /**
+   * Clear all persisted chat messages for a user.
+   */
+  static async clearChatHistory(userId: string): Promise<void> {
+    await db.coachMessage.deleteMany({
+      where: { userId },
+    });
+  }
+
+  /**
+   * Handle a user chat message — persists history, calls Gemini with multi-turn
+   * conversation context and real user training data, and saves coach response.
    * Falls back to deterministic engine if Gemini is unavailable.
    */
   static async getCoachResponse(
@@ -245,14 +284,56 @@ export class CoachService {
     const context = await CoachService.getCoachContext(userId);
     const quickPrompts = generateQuickPrompts(context);
 
-    // Try Gemini first
+    // 1. Persist user's message
+    await db.coachMessage.create({
+      data: {
+        userId,
+        role: "user",
+        content: message,
+      },
+    });
+
+    let reply: string | null = null;
+
+    // 2. Try Gemini with multi-turn conversational memory
     const gemini = getGeminiClient();
     if (gemini) {
       try {
         const systemPrompt = buildCoachSystemPrompt(context);
+
+        // Fetch recent conversation history (last 10 turns before current)
+        const recentMessages = await db.coachMessage.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 11,
+        });
+
+        // Reverse to chronological order and exclude the current message
+        const pastTurns = recentMessages.reverse().slice(0, -1);
+
+        // Format multi-turn contents
+        const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+        for (const past of pastTurns) {
+          contents.push({
+            role: past.role === "coach" ? "model" : "user",
+            parts: [{ text: past.content }],
+          });
+        }
+
+        // Add current user turn
+        contents.push({
+          role: "user",
+          parts: [{ text: message }],
+        });
+
+        // Clean leading model messages so first turn is always "user"
+        while (contents.length > 1 && contents[0]?.role === "model") {
+          contents.shift();
+        }
+
         const response = await gemini.models.generateContent({
           model: COACH_MODEL,
-          contents: message,
+          contents,
           config: {
             systemInstruction: systemPrompt,
             maxOutputTokens: 2048,
@@ -262,24 +343,35 @@ export class CoachService {
           },
         });
 
-        const reply = response.text?.trim();
-        if (reply && reply.length >= 30) {
-          return { reply, quickPrompts };
+        const text = response.text?.trim();
+        if (text && text.length >= 30) {
+          reply = text;
         }
       } catch (error) {
-        // Log but don't throw — fall through to deterministic fallback
         console.error("[CoachService] Gemini API error, falling back to deterministic engine:", error);
       }
     }
 
-    // Fallback: deterministic rule-based engine
-    const intent = classifyIntent(message);
-    const reply = generateCoachResponse(intent, context);
+    // 3. Fallback to deterministic rule-based engine if needed
+    if (!reply) {
+      const intent = classifyIntent(message);
+      reply = generateCoachResponse(intent, context);
+    }
+
+    // 4. Persist coach reply
+    await db.coachMessage.create({
+      data: {
+        userId,
+        role: "coach",
+        content: reply,
+      },
+    });
+
     return { reply, quickPrompts };
   }
 
   /**
-   * Get full dashboard data including CoachContext for initial rendering.
+   * Get full dashboard data including CoachContext and hydrated chat history.
    */
   static async getCoachDashboard(userId: string): Promise<{
     insights: CoachInsights;
@@ -288,8 +380,17 @@ export class CoachService {
     greeting: string;
     quickPrompts: string[];
     isGeminiEnabled: boolean;
+    initialMessages: Array<{
+      id: string;
+      sender: "user" | "coach";
+      text: string;
+      timestamp: string;
+    }>;
   }> {
-    const context = await CoachService.getCoachContext(userId);
+    const [context, chatHistory] = await Promise.all([
+      CoachService.getCoachContext(userId),
+      CoachService.getChatHistory(userId, 50),
+    ]);
 
     const highlights = generateCoachHighlights({
       completedThisWeek: context.completedThisWeek,
@@ -297,6 +398,21 @@ export class CoachService {
       totalPrs: context.recentPrs.length,
       totalVolume: context.weeklyVolume,
     });
+
+    const greeting = generateGreeting(context);
+
+    // If user has past messages, use them; otherwise show default greeting
+    const initialMessages =
+      chatHistory.length > 0
+        ? chatHistory
+        : [
+            {
+              id: "greeting",
+              sender: "coach" as const,
+              text: greeting,
+              timestamp: "Just now",
+            },
+          ];
 
     return {
       insights: {
@@ -312,9 +428,10 @@ export class CoachService {
         weeklyFrequency: context.weeklyFrequency,
       },
       coachContext: context,
-      greeting: generateGreeting(context),
+      greeting,
       quickPrompts: generateQuickPrompts(context),
       isGeminiEnabled: getGeminiClient() !== null,
+      initialMessages,
     };
   }
 

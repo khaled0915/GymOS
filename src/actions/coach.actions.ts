@@ -46,3 +46,16 @@ export async function sendCoachMessageAction(message: string): Promise<{
 
   return CoachService.getCoachResponse(session.user.id, trimmed);
 }
+
+/**
+ * Server action to clear all chat history for the current user.
+ */
+export async function clearChatHistoryAction(): Promise<{ success: boolean }> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  await CoachService.clearChatHistory(session.user.id);
+  revalidatePath("/coach");
+  return { success: true };
+}
+
