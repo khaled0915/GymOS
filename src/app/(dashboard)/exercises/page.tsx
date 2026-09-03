@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Dumbbell, Search, Filter, Plus, Calculator } from "lucide-react";
+import { Dumbbell, Search, Filter, Plus, Calculator, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default async function ExercisesPage({
@@ -96,11 +96,20 @@ export default async function ExercisesPage({
                       {exercise.primaryMuscle}
                     </Badge>
                   </div>
-                  {exercise.equipment && (
-                    <CardDescription className="text-xs">
-                      Equipment: {exercise.equipment}
-                    </CardDescription>
-                  )}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    {exercise.equipment ? (
+                      <CardDescription className="text-xs">
+                        Equipment: {exercise.equipment}
+                      </CardDescription>
+                    ) : (
+                      <span />
+                    )}
+                    {exercise.mediaUrl && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <Video className="h-3 w-3" /> Video Demo
+                      </span>
+                    )}
+                  </div>
                 </CardHeader>
                 {exercise.instructions && (
                   <CardContent className="pt-0">

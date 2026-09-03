@@ -5,13 +5,21 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Dumbbell, Activity } from "lucide-react";
+import { ArrowLeft, Dumbbell, Activity, Video, ExternalLink, Play } from "lucide-react";
 import { MuscleMap } from "@/components/muscle-map/MuscleMap";
 import {
   calculateExerciseMuscleStimulus,
   normalizeMuscleIntensities,
 } from "@/domain/muscles/muscle-stimulus";
 import { PRISMA_MUSCLE_TO_ANATOMICAL } from "@/domain/muscles/muscle-types";
+
+function getYouTubeEmbedUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return match && match[1] ? `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0` : null;
+}
 
 export default async function ExerciseDetailPage({
   params,
@@ -119,6 +127,49 @@ export default async function ExerciseDetailPage({
           </p>
         </CardContent>
       </Card>
+
+      {/* ── Video Demonstration Section ── */}
+      {exercise.mediaUrl && (
+        <Card className="border-border/60 bg-[#12161F]/60 backdrop-blur-sm overflow-hidden space-y-3">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Video className="h-5 w-5 text-emerald-400" /> Demonstration Video
+              </CardTitle>
+              <Button asChild variant="outline" size="sm" className="h-7 text-xs border-border/60 hover:bg-white/5">
+                <a href={exercise.mediaUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3 w-3 mr-1" /> Open Video
+                </a>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {getYouTubeEmbedUrl(exercise.mediaUrl) ? (
+              <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-border/50 bg-black shadow-lg">
+                <iframe
+                  src={getYouTubeEmbedUrl(exercise.mediaUrl)!}
+                  title={`${exercise.name} Demonstration`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="absolute inset-0 w-full h-full"
+                />
+              </div>
+            ) : (
+              <div className="p-6 rounded-2xl bg-[#0A0D12] border border-border/40 text-center space-y-3">
+                <Play className="h-8 w-8 text-emerald-400 mx-auto" />
+                <p className="text-xs text-muted-foreground">
+                  External demonstration video available for this movement.
+                </p>
+                <Button asChild variant="athletic" size="sm" className="bg-emerald-500 text-black font-bold">
+                  <a href={exercise.mediaUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1" /> Watch Demo
+                  </a>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
