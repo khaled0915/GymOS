@@ -17,3 +17,32 @@ export async function generateProgramAction(options: {
   revalidatePath("/coach");
   return { success: true, programId: program.id };
 }
+
+/**
+ * Server action for the AI Coach chat — processes user messages and returns
+ * personalized, data-driven coaching responses.
+ */
+export async function sendCoachMessageAction(message: string): Promise<{
+  reply: string;
+  quickPrompts: string[];
+}> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  // Validate input
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return {
+      reply: "Please type a message so I can help you!",
+      quickPrompts: [],
+    };
+  }
+  if (trimmed.length > 500) {
+    return {
+      reply: "Please keep your message under 500 characters.",
+      quickPrompts: [],
+    };
+  }
+
+  return CoachService.getCoachResponse(session.user.id, trimmed);
+}

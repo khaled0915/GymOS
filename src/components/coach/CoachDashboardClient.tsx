@@ -1,34 +1,37 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { generateProgramAction } from "@/actions/coach.actions";
+import { generateProgramAction, sendCoachMessageAction } from "@/actions/coach.actions";
 import {
   Sparkles,
-  Flame,
   Dumbbell,
   CheckCircle2,
-  CalendarDays,
-  ArrowRight,
-  TrendingUp,
-  Activity,
-  Layers,
   Wand2,
   Send,
   Bot,
-  AlertTriangle,
-  Scale,
-  Mic,
   Zap,
+  Activity,
+  Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { CoachInsights } from "@/domain/coach";
+import type { CoachMuscleRecovery } from "@/domain/coach-engine";
 
 interface CoachDashboardProps {
   insights: CoachInsights;
   userProfile: { name: string; fitnessGoal: string; weeklyFrequency: number };
+  greeting: string;
+  quickPrompts: string[];
+  muscleRecovery: CoachMuscleRecovery[];
+  muscleBalance: {
+    upperVolume: number;
+    lowerVolume: number;
+    balanceRatio: string;
+    advice: string;
+  };
 }
 
 interface ChatMessage {
@@ -40,29 +43,40 @@ interface ChatMessage {
 export function CoachDashboardClient({
   insights,
   userProfile,
+  greeting,
+  quickPrompts: initialQuickPrompts,
+  muscleRecovery,
+  muscleBalance,
 }: CoachDashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Generator Options
   const [goal, setGoal] = useState<"MUSCLE_GAIN" | "FAT_LOSS" | "STRENGTH" | "GENERAL_FITNESS">("MUSCLE_GAIN");
   const [frequency, setFrequency] = useState<3 | 4 | 5 | 6>(5);
-  const [equipment, setEquipment] = useState<"FULL_GYM" | "DUMBBELLS" | "BODYWEIGHT">("FULL_GYM");
   const [generatedSuccess, setGeneratedSuccess] = useState(false);
 
-  // Conversational Chat State
+  // Chat State
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       sender: "coach",
-      text: "Hello Alex! I am Coach Antigravity. I analyzed your recent lifting logs and volume distribution. How can I help fine-tune your training today?",
+      text: greeting,
       timestamp: "Just now",
     },
   ]);
   const [inputMessage, setInputMessage] = useState("");
+  const [isChatPending, setIsChatPending] = useState(false);
+  const [dynamicPrompts, setDynamicPrompts] = useState<string[]>(initialQuickPrompts);
 
-  const handleSendMessage = (textToSend?: string) => {
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || inputMessage;
-    if (!text.trim()) return;
+    if (!text.trim() || isChatPending) return;
 
     const userMsg: ChatMessage = {
       sender: "user",
@@ -72,25 +86,32 @@ export function CoachDashboardClient({
 
     setMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setInputMessage("");
+    setIsChatPending(true);
 
-    // Simulated Smart Coach responses
-    setTimeout(() => {
-      let replyText = "Based on your progressive overload trend, your recovery is optimal. Keep adding weight when you hit the top rep bracket.";
-      if (text.toLowerCase().includes("plateau") || text.toLowerCase().includes("bench")) {
-        replyText = "Looking at your last 3 workouts, your RPE reached 9.5 and rep velocity dropped. Here is your breakthrough plan: 1. Deload next session (-10% weight) and focus on explosive speed. 2. Add Close-Grip Incline Press as an accessory to build tricep lockout. 3. Volume Check: You're at 16 sets/week for chest (optimal zone).";
-      } else if (text.toLowerCase().includes("balance") || text.toLowerCase().includes("ratio")) {
-        replyText = `Your Upper vs. Lower Volume ratio is currently ${insights.muscleBalance.balanceRatio}. ${insights.muscleBalance.advice}`;
-      } else if (text.toLowerCase().includes("calorie") || text.toLowerCase().includes("surplus")) {
-        replyText = "For maximum muscle hypertrophy with minimal fat gain, aim for a conservative +250 to +350 kcal surplus above your TDEE with 2.0g protein per kg of bodyweight.";
-      }
+    try {
+      const result = await sendCoachMessageAction(text);
 
       const coachMsg: ChatMessage = {
         sender: "coach",
-        text: replyText,
+        text: result.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
       setMessages((prev) => [...prev, coachMsg]);
-    }, 600);
+
+      // Update quick prompts dynamically
+      if (result.quickPrompts.length > 0) {
+        setDynamicPrompts(result.quickPrompts);
+      }
+    } catch {
+      const errorMsg: ChatMessage = {
+        sender: "coach",
+        text: "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsChatPending(false);
+    }
   };
 
   const handleGenerate = () => {
@@ -98,7 +119,6 @@ export function CoachDashboardClient({
       const res = await generateProgramAction({
         goal,
         frequencyDays: frequency,
-        equipment,
       });
 
       if (res.success) {
@@ -108,6 +128,26 @@ export function CoachDashboardClient({
         }, 1200);
       }
     });
+  };
+
+  // Recovery bar color based on status
+  const getRecoveryColor = (status: CoachMuscleRecovery["status"]) => {
+    switch (status) {
+      case "Ready":
+        return "from-emerald-500 to-cyan-400";
+      case "Recovering":
+        return "from-amber-500 to-yellow-400";
+      case "Fatigued":
+        return "from-rose-500 to-orange-400";
+    }
+  };
+
+  const getRecoveryLabel = (item: CoachMuscleRecovery) => {
+    if (item.status === "Ready") return "Ready to Train";
+    if (item.status === "Fatigued") {
+      return item.daysSinceTraining === 0 ? "Just Trained" : `Fatigued (${item.daysSinceTraining}d ago)`;
+    }
+    return `Recovering (${item.daysSinceTraining}d ago)`;
   };
 
   return (
@@ -127,14 +167,14 @@ export function CoachDashboardClient({
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs px-3 py-1 font-bold">
-            <Bot className="h-3.5 w-3.5 mr-1" /> Coach Antigravity Online
+            <Bot className="h-3.5 w-3.5 mr-1" /> Data-Driven Engine
           </Badge>
         </div>
       </div>
 
-      {/* ── 2-Column Split: 50% Left Coach Chat / 50% Right Program Architect ── */}
+      {/* ── 2-Column Split ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ── LEFT COLUMN (6 Cols ~ 50%) Interactive AI Coach Chat ── */}
+        {/* ── LEFT COLUMN: AI Coach Chat ── */}
         <div className="lg:col-span-6 flex flex-col h-[640px] rounded-2xl border border-border/60 bg-[#12161F]/80 backdrop-blur-md overflow-hidden">
           {/* Chat Header */}
           <div className="p-4 border-b border-border/40 bg-[#0A0D12]/60 flex items-center justify-between">
@@ -145,12 +185,14 @@ export function CoachDashboardClient({
               </div>
               <div>
                 <h3 className="font-bold text-white text-sm">Coach Antigravity</h3>
-                <p className="text-[10px] text-emerald-400 font-semibold">Analyzing Personal Lifting Data</p>
+                <p className="text-[10px] text-emerald-400 font-semibold">
+                  {isChatPending ? "Analyzing Your Data..." : "Analyzing Personal Lifting Data"}
+                </p>
               </div>
             </div>
 
             <Badge variant="secondary" className="text-[10px] font-mono">
-              GPT-4 / Gemini Powered
+              Data-Driven Engine
             </Badge>
           </div>
 
@@ -173,27 +215,40 @@ export function CoachDashboardClient({
                       : "bg-[#0A0D12]/90 border border-border/50 text-white rounded-tl-none space-y-1.5"
                   }`}
                 >
-                  <p>{m.text}</p>
+                  <p className="whitespace-pre-line">{m.text}</p>
                   <span className={`text-[9px] block ${m.sender === "user" ? "text-black/70" : "text-muted-foreground"}`}>
                     {m.timestamp}
                   </span>
                 </div>
               </div>
             ))}
+
+            {/* Typing indicator */}
+            {isChatPending && (
+              <div className="flex gap-2.5 justify-start">
+                <div className="h-7 w-7 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="p-3.5 rounded-2xl rounded-tl-none bg-[#0A0D12]/90 border border-border/50">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span className="text-[11px] font-semibold">Analyzing your data...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={chatEndRef} />
           </div>
 
-          {/* Quick Prompt Suggestion Chips */}
+          {/* Quick Prompt Chips */}
           <div className="px-4 py-2 border-t border-border/30 bg-[#0A0D12]/30 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            {[
-              "Analyze my Bench Press plateau",
-              "Check Upper/Lower ratio",
-              "Suggest Deload Plan",
-              "Calculate Calorie Surplus",
-            ].map((chip, idx) => (
+            {dynamicPrompts.map((chip, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSendMessage(chip)}
-                className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-emerald-500/15 border border-border/40 hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-400 text-[10px] font-semibold whitespace-nowrap transition-all"
+                disabled={isChatPending}
+                className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-emerald-500/15 border border-border/40 hover:border-emerald-500/40 text-muted-foreground hover:text-emerald-400 text-[10px] font-semibold whitespace-nowrap transition-all disabled:opacity-50"
               >
                 + {chip}
               </button>
@@ -203,24 +258,26 @@ export function CoachDashboardClient({
           {/* Chat Input Bar */}
           <div className="p-3 border-t border-border/40 bg-[#0A0D12]/80 flex items-center gap-2">
             <Input
-              placeholder="Ask Coach Antigravity about overload, nutrition, or splits..."
+              placeholder="Ask about plateaus, nutrition, recovery, volume..."
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              disabled={isChatPending}
               className="h-10 text-xs bg-[#12161F] border-border/60 focus:border-emerald-400"
             />
             <Button
               onClick={() => handleSendMessage()}
               size="sm"
               variant="athletic"
+              disabled={isChatPending}
               className="h-10 px-4 font-bold bg-emerald-500 hover:bg-emerald-400 text-black"
             >
-              <Send className="h-4 w-4" />
+              {isChatPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </div>
 
-        {/* ── RIGHT COLUMN (6 Cols ~ 50%) Program Architect & Biometric Recovery ── */}
+        {/* ── RIGHT COLUMN: Program Architect & Recovery ── */}
         <div className="lg:col-span-6 space-y-6">
           {/* Card 1: AI Workout Program Generator */}
           <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/80 backdrop-blur-md space-y-5">
@@ -246,7 +303,7 @@ export function CoachDashboardClient({
                 ].map((g) => (
                   <button
                     key={g.id}
-                    onClick={() => setGoal(g.id as any)}
+                    onClick={() => setGoal(g.id as typeof goal)}
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
                       goal === g.id
                         ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 shadow-sm"
@@ -271,7 +328,7 @@ export function CoachDashboardClient({
                 ].map((f) => (
                   <button
                     key={f.days}
-                    onClick={() => setFrequency(f.days as any)}
+                    onClick={() => setFrequency(f.days as typeof frequency)}
                     className={`py-2 px-2 rounded-xl border text-[11px] font-bold text-center transition-all ${
                       frequency === f.days
                         ? "bg-emerald-500/15 border-emerald-500/50 text-emerald-400 shadow-sm"
@@ -318,41 +375,48 @@ export function CoachDashboardClient({
             </Button>
           </div>
 
-          {/* Card 2: Biometric Recovery & Muscle Readiness Heatmap */}
+          {/* Card 2: Real Muscle Recovery Heatmap */}
           <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/80 backdrop-blur-md space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-cyan-400" />
                 <h3 className="font-bold text-white text-base">Muscle Recovery &amp; Readiness</h3>
               </div>
-              <span className="text-xs text-muted-foreground font-mono">24h Adaptive Model</span>
+              <span className="text-xs text-muted-foreground font-mono">Real-Time Tracking</span>
             </div>
 
             <div className="space-y-3 text-xs">
-              {[
-                { name: "Chest", recovery: 90, status: "Ready to Train", color: "from-emerald-500 to-cyan-400" },
-                { name: "Shoulders", recovery: 85, status: "Ready to Train", color: "from-emerald-500 to-cyan-400" },
-                { name: "Back", recovery: 45, status: "Recovering (48h)", color: "from-amber-500 to-yellow-400" },
-                { name: "Quads & Hamstrings", recovery: 30, status: "Fatigued (Heavy Leg Day)", color: "from-rose-500 to-orange-400" },
-              ].map((m, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-white">{m.name}</span>
-                    <span className="text-muted-foreground font-mono">{m.recovery}% ({m.status})</span>
-                  </div>
-                  <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full bg-gradient-to-r ${m.color} rounded-full transition-all duration-500`}
-                      style={{ width: `${m.recovery}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+              {muscleRecovery.length > 0 ? (
+                muscleRecovery
+                  .sort((a, b) => a.estimatedRecoveryPct - b.estimatedRecoveryPct)
+                  .map((m, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-white">{m.muscle}</span>
+                        <span className="text-muted-foreground font-mono">
+                          {m.estimatedRecoveryPct}% ({getRecoveryLabel(m)})
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-muted/30 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${getRecoveryColor(m.status)} rounded-full transition-all duration-500`}
+                          style={{ width: `${m.estimatedRecoveryPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  Complete a few workouts and recovery data will appear here.
+                </p>
+              )}
             </div>
 
             <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
               <span className="text-muted-foreground">Upper vs. Lower Volume Ratio:</span>
-              <strong className="text-emerald-400 font-mono">{insights.muscleBalance.balanceRatio} (Optimal Symmetry)</strong>
+              <strong className="text-emerald-400 font-mono">
+                {muscleBalance.balanceRatio}
+              </strong>
             </div>
           </div>
         </div>

@@ -12,6 +12,10 @@ export default async function CoachPage() {
     <CoachDashboardClient
       insights={data.insights}
       userProfile={data.userProfile}
+      greeting={data.greeting}
+      quickPrompts={data.quickPrompts}
+      muscleRecovery={data.coachContext.muscleRecovery}
+      muscleBalance={data.coachContext.muscleBalance}
     />
   );
 }
