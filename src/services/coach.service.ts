@@ -23,6 +23,9 @@ import {
   generateQuickPrompts,
   estimateMuscleRecovery,
 } from "@/domain/coach-engine";
+import { getGeminiClient, COACH_MODEL } from "@/lib/gemini";
+import { buildCoachSystemPrompt } from "@/domain/coach-prompt";
+import { ThinkingLevel } from "@google/genai";
 
 // ──────────────────────────────────────
 // Muscle groups for recovery tracking
@@ -232,16 +235,46 @@ export class CoachService {
   }
 
   /**
-   * Handle a user chat message — returns personalized response + updated prompts.
+   * Handle a user chat message — calls Gemini with real user data as context.
+   * Falls back to deterministic engine if Gemini is unavailable.
    */
   static async getCoachResponse(
     userId: string,
     message: string,
   ): Promise<{ reply: string; quickPrompts: string[] }> {
     const context = await CoachService.getCoachContext(userId);
+    const quickPrompts = generateQuickPrompts(context);
+
+    // Try Gemini first
+    const gemini = getGeminiClient();
+    if (gemini) {
+      try {
+        const systemPrompt = buildCoachSystemPrompt(context);
+        const response = await gemini.models.generateContent({
+          model: COACH_MODEL,
+          contents: message,
+          config: {
+            systemInstruction: systemPrompt,
+            maxOutputTokens: 2048,
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.MINIMAL,
+            },
+          },
+        });
+
+        const reply = response.text?.trim();
+        if (reply && reply.length >= 30) {
+          return { reply, quickPrompts };
+        }
+      } catch (error) {
+        // Log but don't throw — fall through to deterministic fallback
+        console.error("[CoachService] Gemini API error, falling back to deterministic engine:", error);
+      }
+    }
+
+    // Fallback: deterministic rule-based engine
     const intent = classifyIntent(message);
     const reply = generateCoachResponse(intent, context);
-    const quickPrompts = generateQuickPrompts(context);
     return { reply, quickPrompts };
   }
 
@@ -254,6 +287,7 @@ export class CoachService {
     coachContext: CoachContext;
     greeting: string;
     quickPrompts: string[];
+    isGeminiEnabled: boolean;
   }> {
     const context = await CoachService.getCoachContext(userId);
 
@@ -280,6 +314,7 @@ export class CoachService {
       coachContext: context,
       greeting: generateGreeting(context),
       quickPrompts: generateQuickPrompts(context),
+      isGeminiEnabled: getGeminiClient() !== null,
     };
   }
 

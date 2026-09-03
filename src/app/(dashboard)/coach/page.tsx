@@ -16,6 +16,7 @@ export default async function CoachPage() {
       quickPrompts={data.quickPrompts}
       muscleRecovery={data.coachContext.muscleRecovery}
       muscleBalance={data.coachContext.muscleBalance}
+      isGeminiEnabled={data.isGeminiEnabled}
     />
   );
 }

@@ -32,6 +32,7 @@ interface CoachDashboardProps {
     balanceRatio: string;
     advice: string;
   };
+  isGeminiEnabled?: boolean;
 }
 
 interface ChatMessage {
@@ -47,6 +48,7 @@ export function CoachDashboardClient({
   quickPrompts: initialQuickPrompts,
   muscleRecovery,
   muscleBalance,
+  isGeminiEnabled = false,
 }: CoachDashboardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -167,7 +169,7 @@ export function CoachDashboardClient({
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs px-3 py-1 font-bold">
-            <Bot className="h-3.5 w-3.5 mr-1" /> Data-Driven Engine
+            <Bot className="h-3.5 w-3.5 mr-1" /> {isGeminiEnabled ? "Gemini AI Coach" : "Deterministic Engine"}
           </Badge>
         </div>
       </div>
@@ -192,7 +194,7 @@ export function CoachDashboardClient({
             </div>
 
             <Badge variant="secondary" className="text-[10px] font-mono">
-              Data-Driven Engine
+              {isGeminiEnabled ? "Gemini Flash AI" : "Deterministic Engine"}
             </Badge>
           </div>
 
