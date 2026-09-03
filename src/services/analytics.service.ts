@@ -20,6 +20,7 @@ function toAnalyticsWorkouts(sessions: FullWorkoutSession[]): AnalyticsWorkout[]
         exerciseId: es.exerciseId,
         exerciseName: es.exercise.name,
         primaryMuscle: es.exercise.primaryMuscle,
+        secondaryMuscles: es.exercise.secondaryMuscles || [],
         sets: es.sets.map((set) => ({
           weight: set.weight,
           repetitions: set.repetitions,

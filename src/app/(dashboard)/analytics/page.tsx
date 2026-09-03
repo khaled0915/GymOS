@@ -18,6 +18,7 @@ import { MuscleGroupPieClient } from "@/components/analytics/MuscleGroupPieClien
 import { ExerciseProgressionClient } from "@/components/analytics/ExerciseProgressionClient";
 import { WorkoutFrequencyClient } from "@/components/analytics/WorkoutFrequencyClient";
 import { VolumeLandmarksClient } from "@/components/analytics/VolumeLandmarksClient";
+import { AnalyticsMuscleHeatmapClient } from "@/components/analytics/AnalyticsMuscleHeatmapClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -154,6 +155,9 @@ export default async function AnalyticsPage() {
 
       {/* ── Row 2: Hypertrophy Volume Landmarks Grid ── */}
       <VolumeLandmarksClient setsByMuscle={weeklySetsByMuscle} />
+
+      {/* ── Row 3: Anatomical Muscle Heatmap & Distribution ── */}
+      <AnalyticsMuscleHeatmapClient workouts={serializedWorkouts} />
 
       {/* ── Row 3: Multi-Week Volume Progression Chart ── */}
       {data.volumeByWeek.length >= 1 && (

@@ -36,6 +36,12 @@ import { generateWarmUpSets, type WarmUpSet } from "@/domain/warmup";
 import type { FullWorkoutSession } from "@/repositories/workout.repository";
 import type { Exercise } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { MuscleMap } from "@/components/muscle-map/MuscleMap";
+import {
+  calculateWorkoutMuscleStimulus,
+  normalizeMuscleIntensities,
+} from "@/domain/muscles/muscle-stimulus";
+import type { MuscleIntensity } from "@/domain/muscles/muscle-types";
 
 function playRestChime() {
   if (typeof window === "undefined") return;
@@ -121,6 +127,14 @@ export function WorkoutLoggerClient({
   const [previousSets, setPreviousSets] = useState<
     Array<{ setNumber: number; weight: number; repetitions: number; rpe?: number | null }>
   >([]);
+
+  // Post-workout completed summary & muscle map state
+  const [completedSummary, setCompletedSummary] = useState<{
+    durationMinutes: number;
+    totalSets: number;
+    totalVolume: number;
+    musclesTrained: MuscleIntensity[];
+  } | null>(null);
 
   // Timer Tick
   useEffect(() => {
@@ -268,11 +282,31 @@ export function WorkoutLoggerClient({
 
   const handleFinishWorkout = () => {
     if (!session) return;
+
+    // Calculate muscles trained before closing session
+    const rawStimulus = calculateWorkoutMuscleStimulus(
+      session.exerciseSessions.map((es) => ({
+        exercise: {
+          primaryMuscle: es.exercise.primaryMuscle,
+          secondaryMuscles: es.exercise.secondaryMuscles || [],
+        },
+        sets: es.sets,
+      }))
+    );
+    const musclesTrained = normalizeMuscleIntensities(rawStimulus);
+    const durationMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+    const summaryData = {
+      durationMinutes,
+      totalSets: totalSetsLogged,
+      totalVolume: Math.round(totalVolumeLifted),
+      musclesTrained,
+    };
+
     startTransition(async () => {
       const workout = await completeWorkoutAction(session.id);
       if (workout) {
         setSession(null);
-        router.push("/dashboard");
+        setCompletedSummary(summaryData);
       }
     });
   };
@@ -296,6 +330,78 @@ export function WorkoutLoggerClient({
     const s = sec % 60;
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
+
+  if (completedSummary) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 sm:p-8 rounded-3xl border border-emerald-500/40 bg-gradient-to-b from-[#12161F] to-[#0A0D12] text-center space-y-6 shadow-2xl">
+          <div className="h-16 w-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+            <Trophy className="h-8 w-8 fill-current text-emerald-400" />
+          </div>
+
+          <div className="space-y-2">
+            <Badge variant="success" className="font-bold px-3 py-1">
+              Session Logged Successfully
+            </Badge>
+            <h1 className="text-3xl sm:text-4xl font-black text-white">Workout Complete!</h1>
+            <p className="text-sm text-muted-foreground">
+              Great work! Here is your training breakdown and anatomical stimulus coverage.
+            </p>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-4 rounded-2xl bg-[#0D121B] border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Duration</span>
+              <span className="text-xl sm:text-2xl font-black text-white">{completedSummary.durationMinutes} min</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#0D121B] border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Working Sets</span>
+              <span className="text-xl sm:text-2xl font-black text-white">{completedSummary.totalSets}</span>
+            </div>
+            <div className="p-4 rounded-2xl bg-[#0D121B] border border-border/50">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Volume</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-400">
+                {completedSummary.totalVolume.toLocaleString()} <span className="text-xs text-muted-foreground">kg</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Muscles Trained Heatmap */}
+          <div className="p-4 sm:p-6 rounded-2xl bg-[#0D121B] border border-border/60 text-left space-y-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-emerald-400" /> Muscles Stimulated Today
+            </h3>
+            <MuscleMap muscles={completedSummary.musclesTrained} view="both" />
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center pt-2">
+            <Button
+              onClick={() => router.push("/dashboard")}
+              className="w-full sm:w-auto px-6 font-bold bg-emerald-500 hover:bg-emerald-400 text-black"
+            >
+              Back to Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/workouts/history")}
+              className="w-full sm:w-auto px-6 border-border/60 text-white hover:bg-white/5"
+            >
+              View History
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setCompletedSummary(null)}
+              className="w-full sm:w-auto text-xs text-muted-foreground hover:text-white"
+            >
+              Start Another Workout
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (

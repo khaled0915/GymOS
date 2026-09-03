@@ -12,6 +12,7 @@ export interface AnalyticsExerciseSession {
   exerciseId: string;
   exerciseName: string;
   primaryMuscle: string;
+  secondaryMuscles?: string[];
   sets: AnalyticsSet[];
 }
 
