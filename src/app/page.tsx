@@ -31,6 +31,7 @@ import {
 } from "@/components/home/FramerScroll";
 import StackingCards, { StackingCardItem } from "@/components/ui/stacking-cards";
 import AthleteExerciseSlider from "@/components/home/AthleteExerciseSlider";
+import HyperdriveHero from "@/components/ui/hyperdrive-hero";
 
 export default async function HomePage() {
   const session = await auth();
@@ -566,51 +567,27 @@ export default async function HomePage() {
             </MotionFadeIn>
           </section>
 
-          {/* ── Section 5: High-Impact Cyberpunk Call to Action (CTA) ── */}
+          {/* ── Section 5: Hyperdrive Call to Action (21st.dev / Dhileep Kumar GM) ── */}
           <section className="max-w-6xl mx-auto px-6 pb-24 w-full">
-            <MotionFadeIn distance={40} className="relative p-10 sm:p-16 rounded-3xl bg-gradient-to-b from-[#161B26] via-[#10141D] to-[#0A0D12] border border-emerald-500/50 text-center space-y-8 overflow-hidden shadow-2xl shadow-emerald-950/50">
-              {/* Radial ambient glow in background */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
-
-              <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
-                <Badge variant="outline" className="border-emerald-500/50 bg-emerald-500/20 text-emerald-300 text-xs font-bold px-3.5 py-1">
-                  Free Forever for Athletes
-                </Badge>
-                <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                  Take Control of Your Overload Today
-                </h2>
-                <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-normal">
-                  Join serious lifters who track with precision. No credit card required, zero ads, 100% data portability.
-                </p>
-              </div>
-
-              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-                {isLoggedIn ? (
-                  <Button asChild size="lg" variant="athletic" className="h-12 px-8 font-bold text-black bg-emerald-500 hover:bg-emerald-400 shadow-xl shadow-emerald-500/30 text-base">
-                    <Link href="/dashboard">
-                      Open Athlete Dashboard <ArrowRight className="ml-2 h-5 w-5" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <>
-                    <Button asChild size="lg" variant="athletic" className="h-12 px-8 font-bold text-black bg-emerald-500 hover:bg-emerald-400 shadow-xl shadow-emerald-500/30 text-base">
-                      <Link href="/register">
-                        Create Free Account <ArrowRight className="ml-2 h-5 w-5" />
-                      </Link>
-                    </Button>
-                    <Button asChild size="lg" variant="outline" className="h-12 px-8 font-bold text-white border-white/30 hover:bg-white/10">
-                      <Link href="/login">Sign In</Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-
-              <div className="relative z-10 flex flex-wrap items-center justify-center gap-6 pt-4 text-xs font-semibold text-slate-200">
-                <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Private &amp; Secure</span>
-                <span className="flex items-center gap-1.5"><Zap className="h-4 w-4 text-emerald-400" /> Instant Overload Math</span>
-                <span className="flex items-center gap-1.5"><Database className="h-4 w-4 text-emerald-400" /> 100% Exportable</span>
-              </div>
-            </MotionFadeIn>
+            <HyperdriveHero
+              badgeText="Next-Generation Performance OS"
+              title="Hyperdrive"
+              description="Launch your strength progression at the speed of light. Deterministic progressive overload, scientific hypertrophy landmarks, and 100% data portability."
+              buttonText={isLoggedIn ? "Open Dashboard" : "Engage Thrusters"}
+              buttonHref={isLoggedIn ? "/dashboard" : "/register"}
+            >
+              {!isLoggedIn && (
+                <div className="pt-3 text-xs text-gray-400">
+                  <span>Already tracking? </span>
+                  <Link
+                    href="/login"
+                    className="text-white underline underline-offset-4 hover:text-emerald-400 transition-colors font-medium"
+                  >
+                    Sign in to your account
+                  </Link>
+                </div>
+              )}
+            </HyperdriveHero>
           </section>
         </div>
 
