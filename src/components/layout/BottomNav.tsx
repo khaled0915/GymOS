@@ -49,6 +49,6 @@ export function BottomNav() {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
