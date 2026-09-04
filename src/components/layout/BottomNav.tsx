@@ -29,7 +29,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 z-50 w-full h-16 bg-background/95 backdrop-blur border-t border-border flex items-center justify-around px-2">
+    <nav aria-label="Mobile navigation" className="md:hidden fixed bottom-0 left-0 z-50 w-full bg-card/95 backdrop-blur-xl border-t border-border/70 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
       {mobileNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -38,7 +38,7 @@ export function BottomNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 text-xs font-medium transition-colors",
+              "flex min-h-16 flex-col items-center justify-center flex-1 gap-1 py-2 text-[10px] font-medium transition-colors",
               isActive
                 ? "text-emerald-600 font-semibold"
                 : "text-muted-foreground hover:text-foreground"

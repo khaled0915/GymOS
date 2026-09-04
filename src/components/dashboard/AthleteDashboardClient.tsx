@@ -82,13 +82,13 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
   const latestPr = data.recentPrs[0];
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-6 pb-28 sm:pb-12">
       {/* ── Top Header & Greeting ── */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#12161F]/90 via-[#0A0D12]/90 to-[#12161F]/90 border border-border/40 backdrop-blur-md">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 p-5 sm:p-7 rounded-3xl bg-card/70 border border-border/60 shadow-2xl shadow-black/10">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Good morning, {userName} 👋
+              Good morning, {userName}
             </h1>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-bold tracking-wide">
               <Flame className="h-3.5 w-3.5 fill-current" /> 14-Day Streak
@@ -137,9 +137,9 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
       )}
 
       {/* ── Row 1: 4 Key Performance KPI Metric Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* KPI 1: Consistency Ring */}
-        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-4">
+        <div className="p-5 rounded-2xl border border-border/50 bg-card/60 flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-4">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
             <span>Weekly Consistency</span>
             <div className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -194,7 +194,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
         </div>
 
         {/* KPI 2: Total Volume Tonnage */}
-        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+        <div className="p-5 rounded-2xl border border-border/50 bg-card/60 flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
             <span>Weekly Volume</span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
@@ -221,7 +221,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
         </div>
 
         {/* KPI 3: Personal Records */}
-        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+        <div className="p-5 rounded-2xl border border-border/50 bg-card/60 flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
             <span>Personal Records</span>
             <Trophy className="h-4 w-4 text-amber-400" />
@@ -244,7 +244,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
         </div>
 
         {/* KPI 4: Daily Fuel & Macro Bar */}
-        <div className="p-5 rounded-2xl border border-border/50 bg-[#12161F]/60 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
+        <div className="p-5 rounded-2xl border border-border/50 bg-card/60 flex flex-col justify-between hover:border-emerald-500/30 transition-all space-y-3">
           <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold uppercase tracking-wider">
             <span>Daily Fuel & Macros</span>
             <span className="text-xs font-bold text-white">
@@ -295,7 +295,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
         {/* ── LEFT COLUMN (8 Cols ~ 65%) ── */}
         <div className="lg:col-span-8 space-y-6">
           {/* Active Workout Routine Card */}
-          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-5">
+          <div className="p-6 rounded-2xl border border-border/60 bg-card/70 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -352,7 +352,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           </div>
 
           {/* Hypertrophy Volume Landmarks Bar Visualizer */}
-          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="p-6 rounded-2xl border border-border/60 bg-card/70 space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-emerald-400" />
@@ -454,7 +454,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           </div>
 
           {/* Quick Hydration Widget with 1-Tap Buttons */}
-          <div className="p-5 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="p-5 rounded-2xl border border-border/60 bg-card/70 space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-cyan-400" />
@@ -512,7 +512,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           </div>
 
           {/* 1RM Strength Standards Radar Tiers */}
-          <div className="p-5 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-3">
+          <div className="p-5 rounded-2xl border border-border/60 bg-card/70 space-y-3">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <h3 className="font-bold text-white text-sm">Strength Tier Standards</h3>
               <Link href="/calculator" className="text-xs text-purple-400 font-semibold hover:underline">
