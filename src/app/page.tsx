@@ -32,6 +32,91 @@ import {
 import StackingCards, { StackingCardItem } from "@/components/ui/stacking-cards";
 import AthleteExerciseSlider from "@/components/home/AthleteExerciseSlider";
 import HyperdriveHero from "@/components/ui/hyperdrive-hero";
+import FaqSection, { FaqData } from "@/components/ui/habit-faq-scroller";
+
+
+const gymosFaqData: FaqData = {
+  mainTitle: "Frequently Asked Questions",
+  mainSubtitle:
+    "Everything you need to know about tracking, deterministic progressive overload, and athletic progression on GymOS.",
+  rows: [
+    {
+      id: "row1",
+      speed: "50s",
+      direction: "left",
+      faqItems: [
+        {
+          id: "q1",
+          question: "How does deterministic progressive overload work?",
+          answer:
+            "GymOS uses strict mathematical progression rules (+2.5kg when hitting the ceiling of your rep range). Zero AI guesswork or arbitrary estimates.",
+        },
+        {
+          id: "q2",
+          question: "Is my training data private and exportable?",
+          answer:
+            "100% private and encrypted. Your training data belongs exclusively to you, and you can export your complete history as CSV with one click.",
+        },
+        {
+          id: "q3",
+          question: "Can I log workouts without internet at the gym?",
+          answer:
+            "Yes! GymOS is built mobile-first and offline-resilient with instant local logging latency. Your workouts sync automatically when connected.",
+        },
+      ],
+    },
+    {
+      id: "row2",
+      speed: "40s",
+      direction: "right",
+      faqItems: [
+        {
+          id: "q4",
+          question: "What are Hypertrophy Volume Landmarks?",
+          answer:
+            "GymOS tracks your weekly direct working sets per muscle group against the scientific 10–20 set zone, guaranteeing optimal muscle growth.",
+        },
+        {
+          id: "q5",
+          question: "How does the built-in rest timer work?",
+          answer:
+            "Every completed set immediately triggers an automatic rest countdown with subtle web audio chimes, keeping your rest intervals disciplined.",
+        },
+        {
+          id: "q6",
+          question: "Can I create custom exercises and routines?",
+          answer:
+            "Yes. You can build custom training splits, add custom movements, set specific rep ranges, and specify target RPEs with ease.",
+        },
+      ],
+    },
+    {
+      id: "row3",
+      speed: "60s",
+      direction: "left",
+      faqItems: [
+        {
+          id: "q7",
+          question: "Are there any subscription fees or paywalls?",
+          answer:
+            "None. Core logging, overload algorithms, 1RM calculators, and volume landmark tracking are completely free forever for athletes.",
+        },
+        {
+          id: "q8",
+          question: "How does GymOS calculate estimated 1RM?",
+          answer:
+            "GymOS provides standard Epley and Brzycki formula calculations, comparing your current working sets against global strength standards.",
+        },
+        {
+          id: "q9",
+          question: "Does GymOS include nutrition and macro tracking?",
+          answer:
+            "Yes! GymOS includes a BMR/TDEE macro calculator, water hydration logger, and a built-in food library with 1-tap portion adjustments.",
+        },
+      ],
+    },
+  ],
+};
 
 export default async function HomePage() {
   const session = await auth();
@@ -207,7 +292,7 @@ export default async function HomePage() {
           <AthleteExerciseSlider />
 
           {/* ── Section 3: The 4-Step Progressive Overload Loop (Stacking Cards) ── */}
-          <section className="border-t border-border/40 bg-[#0d1117] pt-24 pb-16 sm:pb-24">
+          <section className="relative z-10 border-t border-border/40 bg-[#0d1117] pt-20 sm:pt-24 pb-8 sm:pb-16">
             <div className="max-w-7xl mx-auto px-6 space-y-12">
               <MotionFadeIn className="text-center space-y-3 max-w-2xl mx-auto mb-8">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-wider">
@@ -224,8 +309,8 @@ export default async function HomePage() {
               {/* ── 21st.dev / Fancy Components Stacking Cards ── */}
               <StackingCards totalCards={4} scaleMultiplier={0.04} className="relative w-full">
                 {/* 01 PLAN */}
-                <StackingCardItem index={0} className="h-[520px] sm:h-[580px]">
-                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-[#121922] via-[#0d131a] to-[#070a0d] p-6 sm:p-8 md:p-10 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] sm:min-h-[460px]">
+                <StackingCardItem index={0} className="h-[640px] sm:h-[580px] md:h-[560px]">
+                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-[#121922] via-[#0d131a] to-[#070a0d] p-5 sm:p-7 md:p-10 shadow-2xl shadow-emerald-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-0 sm:min-h-[460px]">
                     <div className="flex items-center justify-between border-b border-border/50 pb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
@@ -241,7 +326,7 @@ export default async function HomePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-auto py-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 my-auto py-2 sm:py-4 items-center">
                       <div className="md:col-span-7 space-y-4">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                           Plan Your Athletic Foundation
@@ -296,8 +381,8 @@ export default async function HomePage() {
                 </StackingCardItem>
 
                 {/* 02 TRAIN */}
-                <StackingCardItem index={1} className="h-[520px] sm:h-[580px]">
-                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-blue-500/40 bg-gradient-to-br from-[#101726] via-[#0c111e] to-[#070a0d] p-6 sm:p-8 md:p-10 shadow-2xl shadow-blue-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] sm:min-h-[460px]">
+                <StackingCardItem index={1} className="h-[640px] sm:h-[580px] md:h-[560px]">
+                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-blue-500/40 bg-gradient-to-br from-[#101726] via-[#0c111e] to-[#070a0d] p-5 sm:p-7 md:p-10 shadow-2xl shadow-blue-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-0 sm:min-h-[460px]">
                     <div className="flex items-center justify-between border-b border-border/50 pb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl sm:text-3xl font-black text-blue-400 font-mono tracking-tight">
@@ -313,7 +398,7 @@ export default async function HomePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-auto py-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 my-auto py-2 sm:py-4 items-center">
                       <div className="md:col-span-7 space-y-4">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                           Execute With Previous Performance In-View
@@ -372,8 +457,8 @@ export default async function HomePage() {
                 </StackingCardItem>
 
                 {/* 03 ANALYZE */}
-                <StackingCardItem index={2} className="h-[520px] sm:h-[580px]">
-                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-purple-500/40 bg-gradient-to-br from-[#181126] via-[#120d1e] to-[#070a0d] p-6 sm:p-8 md:p-10 shadow-2xl shadow-purple-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] sm:min-h-[460px]">
+                <StackingCardItem index={2} className="h-[640px] sm:h-[580px] md:h-[560px]">
+                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-purple-500/40 bg-gradient-to-br from-[#181126] via-[#120d1e] to-[#070a0d] p-5 sm:p-7 md:p-10 shadow-2xl shadow-purple-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-0 sm:min-h-[460px]">
                     <div className="flex items-center justify-between border-b border-border/50 pb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl sm:text-3xl font-black text-purple-400 font-mono tracking-tight">
@@ -389,7 +474,7 @@ export default async function HomePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-auto py-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 my-auto py-2 sm:py-4 items-center">
                       <div className="md:col-span-7 space-y-4">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                           Algorithmic PR Detection &amp; Volume Landmarks
@@ -452,8 +537,8 @@ export default async function HomePage() {
                 </StackingCardItem>
 
                 {/* 04 OVERLOAD */}
-                <StackingCardItem index={3} className="h-[520px] sm:h-[580px]">
-                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-amber-500/40 bg-gradient-to-br from-[#241a10] via-[#17110a] to-[#070a0d] p-6 sm:p-8 md:p-10 shadow-2xl shadow-amber-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-[440px] sm:min-h-[460px]">
+                <StackingCardItem index={3} className="h-[640px] sm:h-[580px] md:h-[560px]">
+                  <div className="w-full max-w-5xl mx-auto rounded-3xl border border-amber-500/40 bg-gradient-to-br from-[#241a10] via-[#17110a] to-[#070a0d] p-5 sm:p-7 md:p-10 shadow-2xl shadow-amber-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between min-h-0 sm:min-h-[460px]">
                     <div className="flex items-center justify-between border-b border-border/50 pb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight">
@@ -469,7 +554,7 @@ export default async function HomePage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 my-auto py-4 items-center">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 my-auto py-2 sm:py-4 items-center">
                       <div className="md:col-span-7 space-y-4">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                           Automated Progressive Overload Math
@@ -523,48 +608,13 @@ export default async function HomePage() {
               </StackingCards>
 
               {/* Trailing scroll buffer so the final stacked deck can be viewed */}
-              <div className="h-16 sm:h-24 pointer-events-none" />
+              <div className="h-28 sm:h-36 md:h-44 pointer-events-none" />
             </div>
           </section>
 
-          {/* ── Section 4: GymOS vs Generic Apps Comparison Matrix ── */}
-          <section className="max-w-6xl mx-auto px-6 py-24 w-full space-y-12">
-            <MotionFadeIn className="text-center space-y-3 max-w-2xl mx-auto">
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-                Why Lifters Switch to GymOS
-              </h2>
-              <p className="text-sm sm:text-base text-slate-200">
-                No bloat, no subscription paywalls, no distraction. Built exclusively for athletic progression.
-              </p>
-            </MotionFadeIn>
-
-            <MotionFadeIn delay={0.1} className="rounded-3xl border border-border/60 bg-[#161B26] backdrop-blur-md overflow-hidden shadow-xl">
-              <div className="grid grid-cols-3 p-5 sm:p-6 bg-white/10 border-b border-border/50 text-xs font-bold uppercase tracking-wider text-white">
-                <div>Feature</div>
-                <div className="text-center text-rose-300 font-bold">Generic Workout Trackers</div>
-                <div className="text-center text-emerald-300 font-bold">GymOS Athletic OS</div>
-              </div>
-
-              {[
-                { feature: "Live Progressive Overload Targets", generic: "❌ Manual Guesswork", gymos: "✅ Deterministic Math" },
-                { feature: "Previous Set Performance In-Logger", generic: "❌ Buried in Sub-menus", gymos: "✅ Visible on Screen" },
-                { feature: "Live Rest Timer with Audio Chime", generic: "❌ Often Premium Only", gymos: "✅ Built-in Web Audio" },
-                { feature: "Scientific Warm-Up Ramp Generator", generic: "❌ Not Available", gymos: "✅ 1-Tap Load Drawer" },
-                { feature: "Hypertrophy Landmarks (10-20 sets)", generic: "❌ Basic Bar Charts", gymos: "✅ Evidence-Based Zones" },
-                { feature: "Full Data Ownership & CSV Export", generic: "❌ Locked in App", gymos: "✅ 1-Click Complete Backup" },
-              ].map((row, idx) => (
-                <div
-                  key={idx}
-                  className={`grid grid-cols-3 p-4 sm:p-5 text-xs sm:text-sm items-center ${
-                    idx % 2 === 0 ? "bg-transparent" : "bg-white/[0.04]"
-                  } border-b border-border/40 last:border-0`}
-                >
-                  <div className="font-bold text-white">{row.feature}</div>
-                  <div className="text-center text-slate-300 text-xs">{row.generic}</div>
-                  <div className="text-center font-bold text-emerald-300 text-xs">{row.gymos}</div>
-                </div>
-              ))}
-            </MotionFadeIn>
+          {/* ── Section 4: GymOS FAQ Scroller (21st.dev habit-faq-scroller) ── */}
+          <section className="relative z-20 border-t border-border/60 bg-[#0A0D12] py-20 sm:py-28 w-full shadow-2xl">
+            <FaqSection data={gymosFaqData} />
           </section>
 
           {/* ── Section 5: Hyperdrive Call to Action (21st.dev / Dhileep Kumar GM) ── */}

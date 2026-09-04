@@ -29,8 +29,8 @@ export interface StackingCardsProps
 export interface StackingCardItemProps
   extends HTMLAttributes<HTMLDivElement>,
     PropsWithChildren {
-  index: number
-  topPosition?: string
+  index: number;
+  topPosition?: string;
 }
 
 interface StackingCardsContextValue {
@@ -88,13 +88,15 @@ export const StackingCardItem = ({
   const scaleTo = 1 - (safeTotal - index) * safeMultiplier;
   const rangeScale = [index * (1 / safeTotal), 1];
   const scale = useTransform(progress, rangeScale, [1, scaleTo]);
-  const top = topPosition ?? `calc(clamp(60px, 9vh, 90px) + ${index * 24}px)`;
+  
+  // Compact top position on mobile to prevent cards from extending into succeeding sections
+  const top = topPosition ?? `calc(clamp(28px, 4.5vh, 68px) + ${index * 14}px)`;
 
   return (
     <div className={cn("sticky top-0 w-full", className)} {...props}>
       <motion.div
         className="origin-top relative w-full h-full transform-gpu"
-        style={{ top, scale }}
+        style={{ top, scale, zIndex: index + 1 }}
       >
         {children}
       </motion.div>
