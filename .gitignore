@@ -24,14 +24,11 @@
 *.crt
 credentials*.json
 
-# Security & Specific Planning Documents (Do not push to public repo)
-docs/SECURITY.md
-docs/PRD.md
-SECURITY.md
-PRD.md
-implementation_plan.md
-walkthrough.md
-task.md
+# Markdown & Documentation Files (Keep only README.md for GitHub homepage)
+*.md
+docs/
+!README.md
+!readme.md
 
 # Debug & OS files
 .DS_Store
