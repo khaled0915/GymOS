@@ -17,7 +17,6 @@ import {
   TrendingUp,
   AlertTriangle,
   Scale,
-  CalendarCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -81,9 +80,9 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-28 sm:pb-12">
       {/* ── Breadcrumb & Top Command Bar ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#12161F]/90 via-[#0A0D12]/90 to-[#12161F]/90 border border-border/40 backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-card/70 border border-border/60 shadow-2xl shadow-black/10 backdrop-blur-md">
         <div className="space-y-2">
           <Breadcrumb>
             <BreadcrumbList>
@@ -196,7 +195,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           />
 
           {/* 3. Active Program Routine Card */}
-          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-5">
+          <div className="p-6 rounded-2xl border border-border/60 bg-card/70 space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -257,7 +256,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
         {/* ── RIGHT COLUMN (4 Cols) ── */}
         <div className="lg:col-span-4 space-y-6">
           {/* Hypertrophy Volume Landmarks Bar Visualizer */}
-          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="p-6 rounded-2xl border border-border/60 bg-card/70 space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-emerald-400" />
@@ -313,7 +312,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           </div>
 
           {/* Quick Hydration Widget with 1-Tap Buttons */}
-          <div className="p-5 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
+          <div className="p-5 rounded-2xl border border-border/60 bg-card/70 backdrop-blur-md space-y-4">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <div className="flex items-center gap-2">
                 <Droplets className="h-4 w-4 text-cyan-400" />
@@ -428,7 +427,7 @@ export function AthleteDashboardClient({ userName, data }: DashboardProps) {
           </div>
 
           {/* 1RM Strength Standards Radar Tiers */}
-          <div className="p-5 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-3">
+          <div className="p-5 rounded-2xl border border-border/60 bg-card/70 space-y-3">
             <div className="flex items-center justify-between border-b border-border/40 pb-3">
               <h3 className="font-bold text-white text-sm">Strength Tier Standards</h3>
               <Link href="/calculator" className="text-xs text-purple-400 font-semibold hover:underline">

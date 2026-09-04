@@ -39,11 +39,16 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40 bg-card border-r">
+    <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40 bg-card/80 backdrop-blur-xl border-r border-border/60">
       <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
-        <Link href="/" className="flex items-center flex-shrink-0 px-6 space-x-2 hover:opacity-80 transition-opacity" title="GymOS Home">
-          <Dumbbell className="h-8 w-8 text-emerald-500" />
-          <span className="text-xl font-black tracking-wider uppercase">GymOS</span>
+        <Link href="/" className="flex items-center gap-3 px-6 py-2 hover:opacity-80 transition-opacity" title="GymOS Home">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
+            <Dumbbell className="size-5 text-emerald-400" />
+          </div>
+          <div>
+            <span className="text-lg font-black tracking-tight">GymOS</span>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Performance OS</p>
+          </div>
         </Link>
         <div className="mt-8 flex-grow flex flex-col justify-between">
           <nav className="flex-1 px-4 space-y-1">
