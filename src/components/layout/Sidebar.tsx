@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { 
+  Home,
   LayoutDashboard, 
   Dumbbell, 
   BookOpen, 
@@ -40,10 +41,10 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-40 bg-card border-r">
       <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
-        <div className="flex items-center flex-shrink-0 px-6 space-x-2">
-          <Dumbbell className="h-8 w-8 text-emerald-600" />
+        <Link href="/" className="flex items-center flex-shrink-0 px-6 space-x-2 hover:opacity-80 transition-opacity" title="GymOS Home">
+          <Dumbbell className="h-8 w-8 text-emerald-500" />
           <span className="text-xl font-black tracking-wider uppercase">GymOS</span>
-        </div>
+        </Link>
         <div className="mt-8 flex-grow flex flex-col justify-between">
           <nav className="flex-1 px-4 space-y-1">
             {navItems.map((item) => {
@@ -72,7 +73,18 @@ export function Sidebar() {
             })}
           </nav>
 
-          <div className="p-4 border-t border-border mt-auto flex items-center justify-between">
+          <div className="p-4 border-t border-border mt-auto flex flex-col gap-1.5">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+            >
+              <Link href="/">
+                <Home className="mr-3 h-4 w-4 text-emerald-500" />
+                Home
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

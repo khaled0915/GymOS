@@ -179,15 +179,7 @@ export default async function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Muscle Group Distribution */}
         {data.volumeByMuscle.length > 0 && (
-          <div className="p-6 rounded-2xl border border-border/60 bg-[#12161F]/70 backdrop-blur-md space-y-4">
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="h-5 w-5 text-purple-400" />
-                <h3 className="font-bold text-white text-base">Volume by Muscle Group</h3>
-              </div>
-            </div>
-            <MuscleGroupPieClient data={data.volumeByMuscle} />
-          </div>
+          <MuscleGroupPieClient data={data.volumeByMuscle} />
         )}
 
         {/* Workout Frequency */}
